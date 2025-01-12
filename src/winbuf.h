@@ -89,10 +89,11 @@ typedef struct grid {
 line *line_empty(int cap) {
     line *l = (line *)unn_calloc(1, sizeof(*l));
 
-    wchar_t *str = (wchar_t *)unn_malloc(sizeof(*str) * cap + 1);
+    wchar_t *str = (wchar_t *)unn_malloc((sizeof(*str) + 1) * cap);
 
     str[0] = 0;
     l->cap = cap;
+    l->str = str;
 
     return l;
 }
@@ -108,17 +109,16 @@ inline static list *buffer_as_list(buffer *b) {
     return (list *)&(b->lines_count);
 }
 
-buffer *buffer_empty(const char *name) {
-    buffer *b = (buffer *)unn_calloc(1, sizeof(*b));
 
-    line *l = line_empty(16);
+buffer *buffer_from_lines(const char *name, line *first, line *last, int line_count) {
+    buffer *b = (buffer *)unn_calloc(1, sizeof(*b));
 
     char *name_copy = (char *)unn_malloc(strlen(name) + 1);
     strcpy(name_copy, name);
 
-    b->first = l;
-    b->last = l;
-    b->lines_count = 1;
+    b->first = first;
+    b->last = last;
+    b->lines_count = line_count;
     b->name = name_copy;
     b->on_destroy = NULL;
     b->current_window = NULL;
@@ -129,6 +129,11 @@ buffer *buffer_empty(const char *name) {
     pthread_mutex_init(&b->block, NULL);
 
     return b;
+}
+
+inline static buffer *buffer_empty(const char *name) {
+    line *l = line_empty(4);
+    return buffer_from_lines(name, l, l, 1);
 }
 
 void buffer_free(buffer *b) {
