@@ -100,6 +100,9 @@ int state_init(state *s, err *e) {
     s->other_window = NULL;
     s->prompt_window = NULL;
 
+    s->draw_windows = (window **)malloc(sizeof(*s->draw_windows) * 16);
+    s->draw_windows2 = (window **)malloc(sizeof(*s->draw_windows2) * 16);
+
     s->input_buffer_len = 0;
     memset(&s->input_buffer, 0, sizeof(s->input_buffer));
 
@@ -123,6 +126,9 @@ void state_deinit(state *s) {
 
     binds_free(s->binds_move);
     binds_free(s->binds_edit);
+
+    free(s->draw_windows);
+    free(s->draw_windows2);
 
     sem_destroy(&s->draw_request);
     pthread_mutex_destroy(&s->draw_flags_block);

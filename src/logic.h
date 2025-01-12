@@ -67,11 +67,12 @@ inline static void order_draw(int f) {
 inline static void order_draw_window(window *w) {
     pthread_mutex_lock(&S.draw_flags_block);
 
-    for(int i = 0; i < S.draw_windows_count; i++) // bad
+    for(int i = 0; i < S.draw_windows_count; i++) {  // bad
         if(S.draw_windows[i] == w) {
             pthread_mutex_unlock(&S.draw_flags_block);
             return;
         }
+    }
 
     S.draw_windows[S.draw_windows_count++] = w;
     S.draw_flags |= FLAG_DRAW_WINDOW;

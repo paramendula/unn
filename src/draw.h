@@ -15,6 +15,7 @@ inline static void draw_window_line(struct ncplane *p, window *w, offset view, o
     if(len <= 0) {
         if(cur.l == view.l) { // if we have cursor at an empty line
             nccell c = { 0 };
+            c.gcluster = L' ';
 
             nccell_set_bg_rgb8(&c, 0, 0, 0);
             nccell_set_fg_rgb8(&c, 255, 255, 255);
@@ -23,8 +24,6 @@ inline static void draw_window_line(struct ncplane *p, window *w, offset view, o
         }
         return;
     }
-
-    // TODO: cursor on non-empty line
     
     char not_fully = len > width;
 
@@ -38,6 +37,16 @@ inline static void draw_window_line(struct ncplane *p, window *w, offset view, o
 
     ncplane_cursor_move_yx(p, y1, x1);
     ncplane_putwstr(p, wcstr);
+
+    if(cur.l == view.l && (cur.pos >= view.pos)) { // if we have cursor at an empty line
+        nccell c = { 0 };
+        c.gcluster = cur.l->str[cur.pos];
+
+        nccell_set_bg_rgb8(&c, 0, 0, 0);
+        nccell_set_fg_rgb8(&c, 255, 255, 255);
+
+        ncplane_putc_yx(S.p, y1, x1 + cur.pos - view.pos, &c);
+    }
 
     if(not_fully)
         wcstr[width] = temp;

@@ -77,6 +77,13 @@ void cursor_up() {
 
     if(n != l) {
         off->l = n;
+
+        if(n->len < l->len) {
+            if(off->pos >= n->len) {
+                off->pos = (n->len) ? (n->len - 1) : 0;
+            }
+        }
+
         order_draw_window(S.current_window);
     }
 }
@@ -99,6 +106,13 @@ void cursor_down() {
 
     if(n != l) {
         off->l = n;
+
+        if(n->len < l->len) {
+            if(off->pos >= n->len) {
+                off->pos = (n->len) ? (n->len - 1) : 0;
+            }
+        }
+
         order_draw_window(S.current_window);
     }
 }
@@ -123,12 +137,13 @@ void cursor_right() {
 
     int times = (state_flag_is_on(FLAG_FAST)) ? 5 : 1;
 
-    int n = off->pos - times;
+    int n = off->pos + times;
 
-    if(n >= 0) {
+    if(n < off->l->len) {
         off->pos = n;
         order_draw_window(S.current_window);
     }
+
 }
 
 void cursor_fastmode_toggle() {
