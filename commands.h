@@ -35,6 +35,10 @@ void window_destroy(window *w) {
     callback on_destroy = w->on_destroy;
     if(on_destroy) on_destroy(w);
 
+    if(S.current_window == w) {
+        S.current_window = S.grid->first;
+    }
+
     free(w);
 }
 
