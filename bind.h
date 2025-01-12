@@ -7,7 +7,7 @@
 
 // continuations are virtual #(:-3>-<--< (somewhat)
 
-typedef void(*tusk)();
+typedef void(*tusk)(); // thunk. but my sleepy head at that moment misspelled it
 
 #define TUSK_CONT ((tusk) 1)
 

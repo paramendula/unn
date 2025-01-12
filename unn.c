@@ -1,7 +1,9 @@
 // Unnamed is Not Named
+// a newly-born not-yet-finished "text editor"
+// with high amibitions and far-fetched goals
 
 /*
-    HEADERS:
+    HEADERS(hdr[deps]):
 
         panic flags list
         err[panic] mem[panic] bind[mem]
@@ -13,19 +15,27 @@
 
         unn.c
 
-    TODO:
+    TODO(appropximated):
         overriding binds for buffers
         prompting
         implement the binds
         add more binds for MVP
         text stylizing for scripts
+
         window/buffer additionals for scripts
+
         Scheme Lisp support/script
+
+            Parentheses highlighting
+            Parentheses jump
+            Atoms highlighting
+            Sexp move, delete
+            Procedures, macros, special forms database
+                for completion features
+
         Scheme Lisp integration
 
         - MVP. From now on Scheme code is prioritized
-
-        git init
 
         coroutines
         object system
