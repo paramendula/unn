@@ -7,6 +7,9 @@
 
 // the single possible sane way xD jk
 
+// Will be abrogated after post-MVP refactoring
+// OR unneeded because UNN will speak with Lisp.
+
 void *unn_malloc(size_t bytes) {
     void *ptr = malloc(bytes);
 

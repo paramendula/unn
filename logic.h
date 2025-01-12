@@ -9,35 +9,35 @@
 #include "draw.h"
 
 inline static void state_flag_on(int f) {
-    pthread_mutex_lock(&S.status_flags_block);
+    pthread_mutex_lock(&S.state_flags_block);
 
     S.flags |= f;
 
-    pthread_mutex_unlock(&S.status_flags_block);
+    pthread_mutex_unlock(&S.state_flags_block);
 }
 
 inline static void state_flag_off(int f) {
-    pthread_mutex_lock(&S.status_flags_block);
+    pthread_mutex_lock(&S.state_flags_block);
 
     S.flags ^= (S.flags & f);
 
-    pthread_mutex_unlock(&S.status_flags_block);
+    pthread_mutex_unlock(&S.state_flags_block);
 }
 
 inline static void state_flag_toggle(int f) {
-    pthread_mutex_lock(&S.status_flags_block);
+    pthread_mutex_lock(&S.state_flags_block);
 
     S.flags ^= f;
 
-    pthread_mutex_unlock(&S.status_flags_block);
+    pthread_mutex_unlock(&S.state_flags_block);
 }
 
 inline static int state_flag_is_on(int f) {
-    pthread_mutex_lock(&S.status_flags_block);
+    pthread_mutex_lock(&S.state_flags_block);
 
     int r = S.flags & f;
 
-    pthread_mutex_unlock(&S.status_flags_block);
+    pthread_mutex_unlock(&S.state_flags_block);
 
     return r;
 }
@@ -176,26 +176,30 @@ void status_set_message(wchar_t *fmt, ...) {
     order_draw_status();
 }
 
-void on_resize() {
-    pthread_mutex_lock(&S.draw_block);
-
+void grid_fit_full() {
     unsigned int max_y, max_x;
     ncplane_dim_yx(S.p, &max_y, &max_x);
 
-    if(S.prompts) {
+    if(S.prompt_window) {
         max_y -= 1;
     }
 
     grid_fit(S.grid, (rect) {
         .y1 = 0,
         .x1 = 0,
-        .y2 = max_y - 1,
+        .y2 = max_y - 2, // -1 for status
         .x2 = max_x - 1,
     });
+}
 
-    pthread_mutex_unlock(&S.draw_block);
+void on_resize() {
+    pthread_mutex_lock(&S.draw_block);
+
+    grid_fit_full();
 
     order_draw_all();
+
+    pthread_mutex_unlock(&S.draw_block);
 }
 
 inline static void _process_input(wchar_t wch1, wchar_t wch2) {
@@ -223,7 +227,17 @@ inline static void _process_input(wchar_t wch1, wchar_t wch2) {
 
     char is_edit = state_flag_is_on(FLAG_EDIT);
 
-    tusk att = binds_get(((is_edit) ? S.binds_edit : S.binds_move), S.input_buffer);
+    buffer *buff = (S.current_window) ? S.current_window->buff : NULL;
+
+    binds *binds;
+    
+    if(!is_edit) {
+        binds = (buff) ? ((buff->move_binds) ? buff->move_binds : S.binds_move) : S.binds_move;
+    } else {
+        binds = (buff) ? ((buff->edit_binds) ? buff->edit_binds : S.binds_edit) : S.binds_edit; 
+    }
+
+    tusk att = binds_get(binds, S.input_buffer);
 
     if(!att) {
         if(!is_edit) {

@@ -8,13 +8,16 @@
 
 #include <pthread.h>
 
+#include "helpers.h"
+
 void buffer_destroy(buffer *b) {
     blist_remove(S.blist, b);
     
-    b->on_destroy(b);
+    callback on_destroy = b->on_destroy;
+    if(on_destroy) on_destroy(b);
 
-    if(b->current_window) {
-        window *w = (window *)b->current_window;
+    window *w = (window *)b->current_window;
+    if(w) {
         w->buff = NULL;
         order_draw_window(w);
     }
@@ -23,17 +26,14 @@ void buffer_destroy(buffer *b) {
 }
 
 void window_destroy(window *w) {
-    if(S.prompts == w) {
-        S.prompts = w->next;
+    if(S.prompt_window == w) {
+        S.prompt_window = NULL;
     } else {
         grid_remove(S.grid, w);
     }
 
-    // TODO
-    
-    if(S.current_window == w) {
-        S.current_window = S.grid->first;
-    }
+    callback on_destroy = w->on_destroy;
+    if(on_destroy) on_destroy(w);
 
     free(w);
 }
@@ -70,7 +70,6 @@ void cursor_up() {
         off->index--;
         n = n->prev;
     }
-
 
     if(n != l) {
         off->l = n;
@@ -143,7 +142,7 @@ void enter_append() {
 
 void try_exit() {
     state_flag_on(FLAG_EXIT);
-    order_draw(0);
+    order_draw(0); // to process the exit flags
 }
 
 #endif

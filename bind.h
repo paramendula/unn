@@ -47,9 +47,12 @@ size_t bad_hash(const char *str) {
 }
 
 void binds_free(binds *b) {
+    if(!b) return;
+
     for(size_t i = 0; i < b->len; i++) {
         free(b->bucks[i]);
     }
+    
     free(b->bucks);
     free(b);
 }
@@ -70,8 +73,6 @@ inline static void _binds_add(binds *b, size_t hash, size_t index, char *seq, tu
     bucket **buck_ref = b->bucks + index;
 
     bucket *buck = (bucket *)malloc(sizeof(*buck));
-
-    logg("%s %zu\n", seq, cb);
 
     memcpy(buck->bind, seq, 16);
     buck->cb = cb;
@@ -104,8 +105,6 @@ int binds_set(binds *b, const char *prefix, ubind *u) {
     char seq[16] = { 0 };
     if(prefix) strcpy(seq, prefix);
     strcat(seq, u->seq);
-
-    logg("SET %s\n", seq);
 
     size_t hash = bad_hash(seq);
     size_t index = hash % b->cap;

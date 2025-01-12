@@ -9,6 +9,7 @@
         err[panic] mem[panic] bind[mem]
         winbuf[mem flags list]
         state[err bind winbuf]
+        helpers[state winbuf]
         commands[err winbuf state]
         binds[bind commands]
         logic[state draw binds]
@@ -16,16 +17,13 @@
         unn.c
 
     TODO(appropximated):
-        overriding binds for buffers
         prompting
         implement the binds
         add more binds for MVP
         text stylizing for scripts
-
         window/buffer additionals for scripts
 
         Scheme Lisp support/script
-
             Parentheses highlighting
             Parentheses jump
             Atoms highlighting
@@ -57,10 +55,11 @@
 pthread_mutex_t log_mutex;
 
 void logg(char *fmt, ...) {
+    static FILE *errfp;
     va_list ap; va_start(ap, fmt);
 
     pthread_mutex_lock(&log_mutex);
-    static FILE *errfp;
+
     errfp = fopen("logs.txt", "a");
 
     vfprintf(errfp, fmt, ap);
@@ -68,6 +67,7 @@ void logg(char *fmt, ...) {
     va_end(ap);
 
     fclose(errfp);
+    
     pthread_mutex_unlock(&log_mutex);
 }
 
@@ -116,7 +116,6 @@ void unn_init() {
 
     // fit and draw first time
     on_resize();
-    order_draw_all();
 }
 
 void unn_run() {
@@ -126,7 +125,7 @@ void unn_run() {
     pthread_join(S.iloop, NULL);
     pthread_join(S.dloop, NULL);
 
-    S.done = 1;
+    S.done = 1; // signal state_deinit that threads are done
 }
 
 int main(int argc, char **argv) {

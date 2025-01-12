@@ -9,8 +9,9 @@
 #include "mem.h"
 #include "flags.h"
 #include "list.h"
+#include "bind.h"
 
-typedef void(*bcb)(buffer*);
+typedef void(*callback)(void*);
 
 typedef struct line {
     struct line *prev, *next;
@@ -31,7 +32,10 @@ typedef struct buffer {
 
     pthread_mutex_t block;
 
-    bcb on_destroy;
+    callback on_destroy;
+
+    binds *move_binds;
+    binds *edit_binds;
 
     void *current_window;
 } buffer;
@@ -71,6 +75,8 @@ typedef struct window {
     rect loc, pos; // grid, plane
     offset view, cur;
     buffer *buff;
+
+    callback on_destroy;
 } window;
 
 typedef struct grid {
@@ -116,6 +122,9 @@ buffer *buffer_empty(const char *name) {
     b->name = name_copy;
     b->on_destroy = NULL;
     b->current_window = NULL;
+
+    b->edit_binds = NULL;
+    b->move_binds = NULL;
     
     pthread_mutex_init(&b->block, NULL);
 
@@ -129,6 +138,10 @@ void buffer_free(buffer *b) {
     free(b->path);
     free(b->name);
     pthread_mutex_destroy(&b->block);
+
+    binds_free(b->edit_binds);
+    binds_free(b->move_binds);
+
     free(b);
 }
 
@@ -209,8 +222,8 @@ int grid_fit(grid *g, rect pos) {
     int h_rem = pos_height % g->height;
     int w_rem = pos_width % g->width;
 
-    int x_last = g->height - 1;
-    int y_last = g->width - 1;
+    int x_last = g->height;
+    int y_last = g->width;
 
     for(window *win = g->first; win != NULL; win = win->next) {
         rect loc = win->loc;
@@ -264,16 +277,16 @@ inline static int grid_insert_loc(grid *g, window *w, rect loc) {
 int grid_remove(grid *g, window *w) {
     list_remove((list *)g, (node *)w);
 
-    int test_height = w->loc.y2 - 1;
-    int test_width = w->loc.x2 - 1;
+    int test_height = w->loc.y2;
+    int test_width = w->loc.x2;
 
     if(g->width == test_width || g->height == test_height) {
         int max_height = 0;
         int max_width = 0;
 
         for(window *win = g->first; win != NULL; win = win->next) {
-            int possible_height = win->loc.y2 - 1;
-            int possible_width = win->loc.x2 - 1;
+            int possible_height = win->loc.y2;
+            int possible_width = win->loc.x2;
 
             if(possible_height > max_height) max_height = possible_height;
             if(possible_width > max_width) max_width = possible_width;

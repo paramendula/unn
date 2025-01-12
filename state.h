@@ -19,37 +19,38 @@
 
 typedef struct state {
     struct notcurses *nc;
-    struct ncplane *p;
+    struct ncplane *p; // stdplane
 
-    grid *grid;
-    buffer_list *blist;
+    grid *grid; // all windows(excluding prompt) grid
+    buffer_list *blist; // list of all current buffers
+    
     window *current_window;
-    window *other_window;
-    window *prompts;
-    binds *binds_move, *binds_edit;
+    window *other_window; // window that was current before switched
+    window *prompt_window;
 
-    pthread_mutex_t status_flags_block;
+    binds *binds_move, *binds_edit; // binds for two modes
+
     int flags;
-
-    int draw_flags;
-    pthread_mutex_t draw_flags_block;
+    int draw_flags; // flags for draw loop
+    
     sem_t draw_request;
-    int draw_windows_count, draw_windows_count2;
-    window **draw_windows;
+    int draw_windows_count, draw_windows_count2; // two queues to not make other thread wait while
+    window **draw_windows;                       // draw loop processes it
     window **draw_windows2;
 
-    pthread_mutex_t draw_block;
-
-    suseconds_t sim_cap;
-    int input_buffer_len;
-    char input_buffer[16];
-    
-    pthread_mutex_t status_message_block;
     wchar_t status_message[512];
 
+    suseconds_t sim_cap; // microseconds cap for two keys pressed to count as simultaneous
+    int input_buffer_len;
+    char input_buffer[16]; // current keybind input
+    
+    pthread_mutex_t draw_block; // block drawing loop
+    pthread_mutex_t draw_flags_block; // lock drawing flags for editing/reading
+    pthread_mutex_t status_message_block; // lock status_message for editing/reading
+    pthread_mutex_t state_flags_block; // lock state flags for editing/reading
+    
     pthread_t iloop, dloop;
-
-    char done;
+    char done; // if != 0 then we wait for iloop, dloop to end, deinit everything and exit
 } state;
 
 int state_init(state *s, err *e) {
@@ -78,7 +79,7 @@ int state_init(state *s, err *e) {
         return -5;
     }
 
-    if(pthread_mutex_init(&s->status_flags_block, NULL)) {
+    if(pthread_mutex_init(&s->state_flags_block, NULL)) {
         err_set(e, -6, "pthread_mutex_init for status_flags_block failed");
         return -6;
     }
@@ -92,17 +93,19 @@ int state_init(state *s, err *e) {
     s->blist = (buffer_list *)calloc(1, sizeof(*s->blist));
     s->flags = 0;
 
-    s->binds_move = binds_empty();
+    s->binds_move = binds_empty(); // to be filled after initialization
     s->binds_edit = binds_empty();
 
     s->current_window = NULL;
     s->other_window = NULL;
-    s->prompts = NULL;
+    s->prompt_window = NULL;
 
     s->input_buffer_len = 0;
     memset(&s->input_buffer, 0, sizeof(s->input_buffer));
 
     s->sim_cap = 25000; // microseconds, max 999999
+
+    s->done = 0;
 
     return 0;
 }
@@ -115,16 +118,16 @@ void state_deinit(state *s) {
     }
 
     if(s->nc) notcurses_stop(s->nc);
-    if(s->grid) grid_free(s->grid);
-    if(s->blist) blist_free(s->blist);
+    grid_free(s->grid);
+    blist_free(s->blist);
 
-    if(s->binds_move) binds_free(s->binds_move);
-    if(s->binds_edit) binds_free(s->binds_edit);
+    binds_free(s->binds_move);
+    binds_free(s->binds_edit);
 
     sem_destroy(&s->draw_request);
     pthread_mutex_destroy(&s->draw_flags_block);
     pthread_mutex_destroy(&s->status_message_block);
-    pthread_mutex_destroy(&s->status_flags_block);
+    pthread_mutex_destroy(&s->state_flags_block);
     pthread_mutex_destroy(&s->draw_block);
 }
 
