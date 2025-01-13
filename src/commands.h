@@ -8,8 +8,6 @@
 
 #include <pthread.h>
 
-#include "helpers.h"
-
 void buffer_destroy(buffer *b) {
     blist_remove(S.blist, b);
     
@@ -110,8 +108,8 @@ void cursor_down() {
         n = n->next;
     }
 
-
     if(n != l) {
+        off->index -= times;
         off->l = n;
 
         if(n->len < l->len) {
@@ -146,7 +144,8 @@ void cursor_right() {
 
     int n = off->pos + times;
 
-    if(n < off->l->len) {
+    if(n <= off->l->len) {
+        off->index += times;
         off->pos = n;
         order_draw_window(S.current_window);
     }
@@ -169,6 +168,82 @@ void enter_append() {
 void try_exit() {
     state_flag_on(FLAG_EXIT);
     order_draw(0); // to process the exit flags
+}
+
+void buffer_newline_at_cursor() {
+    pthread_mutex_lock(&S.current_window->buff->block);
+
+    offset *cur = &S.current_window->cur;
+
+    int new = (cur->l->len - cur->pos);
+
+    line *l = line_empty(new + 4);
+
+    if(new) {
+        line_append_str(l, cur->l->str + cur->pos);
+
+        cur->l->len = cur->pos;
+        cur->l->str[cur->pos] = 0;
+    }
+
+    list_insert_after((list *)S.current_window->buff, (node *)cur->l, (node *)l);
+
+    cur->pos = 0;
+    cur->l = l;
+
+    pthread_mutex_unlock(&S.current_window->buff->block);
+
+    order_draw_window(S.current_window);
+}
+
+void buffer_erase_at_cursor() {
+    pthread_mutex_lock(&S.current_window->buff->block);
+
+    offset *cur = &S.current_window->cur;
+
+    if(cur->pos == 0) {
+        line *prev = cur->l->prev;
+
+        if(!prev) {
+            pthread_mutex_unlock(&S.current_window->buff->block);
+            return;
+        }
+
+        line *l = cur->l;
+        
+        list_remove((list *)S.current_window->buff, (node *)l);
+
+        cur->index--;
+        cur->pos = prev->len;
+        line_append_str(prev, l->str);
+
+        cur->l = prev;
+
+        line_free(l);
+    } else {
+        line_remove(cur->l, cur->pos - 1, NULL);
+        cursor_left();
+    }
+
+    pthread_mutex_unlock(&S.current_window->buff->block);
+
+    order_draw_window(S.current_window);
+}
+
+// sorry for that
+void _process_edit(wchar_t wch) {
+    if(!S.current_window) return;
+    if(!S.current_window->buff) return;
+
+    if(wch == NCKEY_BACKSPACE) {
+        buffer_erase_at_cursor();
+        return;
+    } else if(wch == NCKEY_ENTER || wch == L'\n') {
+        buffer_newline_at_cursor();
+        return;
+    }
+
+    buffer_insert_at_cursor(S.current_window, wch);
 }
 
 #endif

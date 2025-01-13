@@ -166,4 +166,17 @@ line *read_file_to_lines(FILE *fp, line **last_buffer, int *lc_buffer) {
     return first;
 }
 
+void cursor_right();
+
+void buffer_insert_at_cursor(window *w, wchar_t ch) {
+    pthread_mutex_lock(&w->buff->block);
+
+    line_insert(w->cur.l, ch, w->cur.pos);
+    cursor_right();
+
+    pthread_mutex_unlock(&w->buff->block);
+
+    order_draw_window(w);
+}
+
 #endif

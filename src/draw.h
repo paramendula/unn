@@ -40,7 +40,9 @@ inline static void draw_window_line(struct ncplane *p, window *w, offset view, o
 
     if(cur.l == view.l && (cur.pos >= view.pos)) { // if we have cursor at an empty line
         nccell c = { 0 };
-        c.gcluster = cur.l->str[cur.pos];
+
+        // L' ' if cursor is at the end, after the last char
+        c.gcluster = (cur.pos < view.l->len) ? cur.l->str[cur.pos] : L' ';
 
         nccell_set_bg_rgb8(&c, 0, 0, 0);
         nccell_set_fg_rgb8(&c, 255, 255, 255);

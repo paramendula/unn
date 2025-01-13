@@ -81,6 +81,11 @@ inline static void order_draw_window(window *w) {
     S.draw_windows[S.draw_windows_count++] = w;
     S.draw_flags |= FLAG_DRAW_WINDOW;
 
+    int val;
+    sem_getvalue(&S.draw_request, &val);
+
+    if(!val) sem_post(&S.draw_request);
+
     pthread_mutex_unlock(&S.draw_flags_block);
 }
 
@@ -96,6 +101,8 @@ inline static void order_draw_all() {
     return order_draw(FLAG_DRAW_ALL);
 }
 
+#include "helpers.h"
+
 void *draw_loop(void*) {
     while (1) {
         if(state_flag_is_on(FLAG_EXIT)) {
@@ -103,6 +110,8 @@ void *draw_loop(void*) {
         }
 
         sem_wait(&S.draw_request);
+
+        logg("Drawing...\n");
 
         pthread_mutex_lock(&S.draw_block);
         pthread_mutex_lock(&S.draw_flags_block);
@@ -112,6 +121,9 @@ void *draw_loop(void*) {
         char d_w = flag_is_on(S.draw_flags, FLAG_DRAW_WINDOW);
         char d_s = flag_is_on(S.draw_flags, FLAG_DRAW_STATUS);
         S.draw_flags = 0;
+
+        logg("Draw flags: a%d g%d w%d s%d\n",
+        d_a, d_g, d_w, d_s);
 
         if(d_a || d_g) {
             S.draw_windows_count = 0;
@@ -132,11 +144,15 @@ void *draw_loop(void*) {
 
             notcurses_render(S.nc);
             pthread_mutex_unlock(&S.draw_block);
+
+            logg("Drawn: all\n");
+
             continue;
         }    
 
         if(d_s) {
             draw_status(S.p);
+            logg("Drawn: status\n");
         }
 
         if(d_g) {
@@ -144,6 +160,8 @@ void *draw_loop(void*) {
 
             pthread_mutex_unlock(&S.draw_block);
             notcurses_render(S.nc);
+
+            logg("Drawn: grid\n");
             continue;
         }
 
@@ -159,6 +177,8 @@ void *draw_loop(void*) {
 
             pthread_mutex_unlock(&S.draw_block);
             notcurses_render(S.nc);
+
+            logg("Drawn: windows\n");
         } else if(d_s) {
             pthread_mutex_unlock(&S.draw_block);
             notcurses_render(S.nc);
@@ -198,6 +218,7 @@ void grid_fit_full() {
 }
 
 void on_resize() {
+    logg("Resize requested\n");
     pthread_mutex_lock(&S.draw_block);
 
     grid_fit_full();
@@ -207,9 +228,7 @@ void on_resize() {
     pthread_mutex_unlock(&S.draw_block);
 }
 
-void _process_edit(wchar_t wch) {
-    // TODO EDITING
-}
+void _process_edit(wchar_t wch);
 
 inline static void _process_input(ncinput *in, wchar_t wch1, ncinput *in2, wchar_t wch2) {
     char ch1 = (wch1 > 255) ? '?' : (char)wch1;
@@ -295,9 +314,11 @@ inline static void _process_input(ncinput *in, wchar_t wch1, ncinput *in2, wchar
     }
 
     S.input_buffer[0] = 0;
-    S.input_buffer_len = 0;
 
-    order_draw_status();
+    if(S.input_buffer_len > 1) {
+        S.input_buffer_len = 0;
+        order_draw_status();
+    } else S.input_buffer_len = 0;
 
     att();
 }

@@ -10,9 +10,9 @@
         winbuf[mem flags list]
         state[err bind winbuf]
         helpers[state winbuf]
-        commands[err winbuf state]
+        logic[helpers state draw binds]
+        commands[err winbuf state logic]
         binds[bind commands]
-        logic[state draw binds]
 
         unn.c
 
@@ -89,6 +89,8 @@ void unn_cleanup() {
 void unn_init() {
     atexit(unn_cleanup);
 
+    logg("Begin\n");
+
     pthread_mutex_init(&log_mutex, NULL);
 
     state_init(&S, &e);
@@ -102,6 +104,8 @@ void unn_init() {
     for(int i = 0; i < sizeof(EDIT_BINDINGS) / sizeof(*EDIT_BINDINGS) - 1; i++) {
         binds_set(S.binds_edit, NULL, EDIT_BINDINGS + i);
     }
+
+    logg("Binds set\n");
 
     // test windows
     line *first, *last;
@@ -144,8 +148,11 @@ void unn_init() {
     grid_insert(S.grid, w2);
     S.current_window = w1;
 
+    logg("Initial windows/buffers created\n");
+
     // fit and draw first time
     on_resize();
+    logg("First draw request sent\n");
 }
 
 void unn_run() {
@@ -155,11 +162,14 @@ void unn_run() {
     pthread_join(S.iloop, NULL);
     pthread_join(S.dloop, NULL);
 
+    logg("Both threads exited\n");
+
     S.done = 1; // signal state_deinit that threads are done
 }
 
 int main(int argc, char **argv) {
     unn_init();
     unn_run();
+    logg("Returning from main\n");
     return 0;
 }

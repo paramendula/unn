@@ -114,6 +114,8 @@ int state_init(state *s, err *e) {
 
     s->done = 0;
 
+    logg("State initialized\n");
+
     return 0;
 }
 
@@ -121,6 +123,7 @@ void state_deinit(state *s) {
     if(!s) return;
 
     while(!s->done) {
+        logg("Waiting for both threads to join...\n");
         sleep(1);
     }
 
@@ -139,6 +142,8 @@ void state_deinit(state *s) {
     pthread_mutex_destroy(&s->status_message_block);
     pthread_mutex_destroy(&s->state_flags_block);
     pthread_mutex_destroy(&s->draw_block);
+
+    logg("State deinitialized\n");
 }
 
 #endif
