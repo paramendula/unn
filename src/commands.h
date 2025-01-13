@@ -42,6 +42,13 @@ void window_destroy(window *w) {
     free(w);
 }
 
+void clear_input_buffer_and_move() {
+    S.input_buffer[0] = 0;
+    S.input_buffer_len = 0;
+    state_flag_off(FLAG_EDIT);
+    order_draw_status();
+}
+
 void mode_move() {
     state_flag_off(FLAG_EDIT);
 

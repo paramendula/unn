@@ -54,10 +54,14 @@ typedef struct state {
 } state;
 
 int state_init(state *s, err *e) {
-    if(!(s->nc = notcurses_core_init(NULL, stdout))) {
+    notcurses_options opt = { 0 };
+
+    if(!(s->nc = notcurses_core_init(&opt, stdout))) {
         err_set(e, -1, "notcurses_core_init failed");
         return -1;
     }
+
+    notcurses_linesigs_disable(s->nc); // disable Ctrl+C quit
 
     if(!(s->p = notcurses_stdplane(s->nc))) {
         err_set(e, -2, "notcurses_stdplane returned NULL");

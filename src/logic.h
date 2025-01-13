@@ -4,6 +4,10 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <sys/time.h>
+#include <string.h>
+#include <ctype.h>
+#include <wchar.h>
+#include <wctype.h>
 
 #include "state.h"
 #include "draw.h"
@@ -203,7 +207,11 @@ void on_resize() {
     pthread_mutex_unlock(&S.draw_block);
 }
 
-inline static void _process_input(wchar_t wch1, wchar_t wch2) {
+void _process_edit(wchar_t wch) {
+    // TODO EDITING
+}
+
+inline static void _process_input(ncinput *in, wchar_t wch1, ncinput *in2, wchar_t wch2) {
     char ch1 = (wch1 > 255) ? '?' : (char)wch1;
     char ch2 = (wch2 > 255) ? '?' : (char)wch2;
 
@@ -215,13 +223,18 @@ inline static void _process_input(wchar_t wch1, wchar_t wch2) {
         }
     }
 
-    if(ch2) {
+    if(ch2) { // modifiers not supported for sim's
         S.input_buffer[S.input_buffer_len++] = '(';
         S.input_buffer[S.input_buffer_len++] = ch1;
         S.input_buffer[S.input_buffer_len++] = ch2;
         S.input_buffer[S.input_buffer_len++] = ')';
     } else {
-        S.input_buffer[S.input_buffer_len++] = ch1;
+        if(ncinput_ctrl_p(in)) {
+            S.input_buffer[S.input_buffer_len++] = '^';
+            S.input_buffer[S.input_buffer_len++] = towlower(wch1);
+        } else {
+            S.input_buffer[S.input_buffer_len++] = ch1;
+        }
     }
 
     S.input_buffer[S.input_buffer_len] = 0;
@@ -231,23 +244,47 @@ inline static void _process_input(wchar_t wch1, wchar_t wch2) {
     buffer *buff = (S.current_window) ? S.current_window->buff : NULL;
 
     binds *binds;
-    
-    if(!is_edit) {
-        binds = (buff) ? ((buff->move_binds) ? buff->move_binds : S.binds_move) : S.binds_move;
+    tusk att;
+
+    if(!is_edit) { 
+        binds = (buff) ? ((buff->move_binds) ? buff->move_binds : NULL) : NULL;
+        if(!binds) { 
+            att = binds_get(S.binds_move, S.input_buffer);
+        } else { // check if buffer binds override the state's one
+            att = binds_get(binds, S.input_buffer);
+            if(!att) {
+                att = binds_get(S.binds_move, S.input_buffer);
+            }
+        }
     } else {
-        binds = (buff) ? ((buff->edit_binds) ? buff->edit_binds : S.binds_edit) : S.binds_edit; 
+        binds = (buff) ? ((buff->edit_binds) ? buff->edit_binds : NULL) : NULL;
+        if(!binds) {
+            att = binds_get(S.binds_edit, S.input_buffer);
+        } else {
+            att = binds_get(binds, S.input_buffer);
+            if(!att) {
+                att = binds_get(S.binds_edit, S.input_buffer);
+            }
+        }
+
+        if(!att && !wch2 && (S.input_buffer_len == 1)) {
+            _process_edit(wch1);
+            S.input_buffer[0] = 0;
+            S.input_buffer_len = 0;
+            return;
+        }
     }
 
-    tusk att = binds_get(binds, S.input_buffer);
-
-    if(!att) {
-        if(!is_edit) {
-            status_set_message(L"| Unknown command <%s>", S.input_buffer);
+    if(!att || att == TUSK_NOP) {
+        for(int i = 0; i < S.input_buffer_len; i++) {
+            if(!isprint(S.input_buffer[i])) {
+                S.input_buffer[i] = '?';
+            }
         }
+        status_set_message(L"| Unknown command <%s>", S.input_buffer);
 
         S.input_buffer[0] = 0;
         S.input_buffer_len = 0;
-
 
         return;
     }
@@ -268,11 +305,12 @@ inline static void _process_input(wchar_t wch1, wchar_t wch2) {
 void *input_loop(void*) {
     static struct timeval start, stop;
     static char flag_sim = 0;
-    static wchar_t ch, last_char;
+    static wchar_t last_char, ch;
+    ncinput in, in2;
 
     while (1) {
         if(flag_sim) {
-            ch = notcurses_get_nblock(S.nc, NULL);
+            ch = notcurses_get_nblock(S.nc, &in2);
 
             if(ch == NCKEY_RESIZE) {
                 on_resize();
@@ -285,11 +323,11 @@ void *input_loop(void*) {
 
             if(diff > S.sim_cap) {
                 flag_sim = 0;
-                _process_input(last_char, 0);
+                _process_input(&in, last_char, NULL, 0);
             } else {
                 if(ch) {
                     flag_sim = 0;
-                    _process_input(last_char, ch);
+                    _process_input(&in, last_char, &in2, ch);
                 }
             }
 
@@ -298,7 +336,7 @@ void *input_loop(void*) {
         
         if(state_flag_is_on(FLAG_EXIT)) break;
 
-        wchar_t nch = notcurses_get_blocking(S.nc, NULL);
+        wchar_t nch = notcurses_get_blocking(S.nc, &in);
 
         if(nch == NCKEY_RESIZE) {
             on_resize();

@@ -10,6 +10,7 @@
 typedef void(*tusk)(); // thunk. but my sleepy head at that moment misspelled it
 
 #define TUSK_CONT ((tusk) 1)
+#define TUSK_NOP ((tusk) 2)
 
 typedef struct ubind {
     char is_cont;

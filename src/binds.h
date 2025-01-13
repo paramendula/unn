@@ -29,13 +29,15 @@ ubind CONTROL_BINDINGS[] = { // 'c' in MOVE or Ctrl+
     { 1, "w", { .cont = WINDOW_BINDINGS } },
     { 1, "f", { .cont = FILE_BINDINGS } },
     { 1, "b", { .cont = BUFFER_BINDINGS } },
-    { 0, "c", { NULL } }, // exit this continuation
+    { 0, "c", { clear_input_buffer_and_move } }, // exit this continuation
+    { 0, "^c", { clear_input_buffer_and_move } },
     { 0, "q", { try_exit } },
     { 0, NULL, { NULL } },
 };
 
 ubind MOVE_BINDINGS[] = {
     { 1, "c", { .cont = CONTROL_BINDINGS } },
+    { 1, "^", { .cont = CONTROL_BINDINGS } },
     { 0, "w", { cursor_up } }, // cursor_up
     { 0, "s", { cursor_left } }, // cursor_left
     { 0, "k", { cursor_right } }, // cursor_right
@@ -48,7 +50,8 @@ ubind MOVE_BINDINGS[] = {
 };
 
 ubind EDIT_BINDINGS[] = {
-    { 1, "^", { .cont = CONTROL_BINDINGS } }, // Ctrl is control bindings 
+    { 1, "^", { .cont = MOVE_BINDINGS } }, // Ctrl is move bindings 
+    { 0, "^n", { cursor_down } }, // cursor_down, ^m is newline on most tty's
     { 0, "(sk)", { mode_move } }, // switch mode to MOVE
     { 0, "(sm)", { mode_move } }, // switch mode to MOVE
     { 0, "(sw)", { mode_move } }, // switch mode to MOVE
