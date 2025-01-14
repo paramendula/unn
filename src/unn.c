@@ -113,6 +113,8 @@ void unn_init() {
         binds_set(S.binds_edit, NULL, EDIT_BINDINGS + i);
     }
 
+    // TODO: set prompt binds
+
     logg("Binds set\n");
 
     // test windows

@@ -29,7 +29,10 @@ typedef struct state {
     window *other_window; // window that was current before switched
     window *prompt_window;
 
+    window *tmp_window;
+
     binds *binds_move, *binds_edit; // binds for two modes
+    binds *binds_prompt; // special overriding binds for prompt window/buffers
 
     int flags;
     int draw_flags; // flags for draw loop
@@ -102,10 +105,13 @@ int state_init(state *s, err *e) {
 
     s->binds_move = binds_empty(); // to be filled after initialization
     s->binds_edit = binds_empty();
+    s->binds_prompt = binds_empty();
 
     s->current_window = NULL;
     s->other_window = NULL;
     s->prompt_window = NULL;
+
+    s->tmp_window = NULL;
 
     s->draw_windows = (window **)malloc(sizeof(*s->draw_windows) * 16);
     s->draw_windows2 = (window **)malloc(sizeof(*s->draw_windows2) * 16);
@@ -137,6 +143,7 @@ void state_deinit(state *s) {
 
     binds_free(s->binds_move);
     binds_free(s->binds_edit);
+    binds_free(s->binds_prompt);
 
     free(s->draw_windows);
     free(s->draw_windows2);

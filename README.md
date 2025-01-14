@@ -4,7 +4,7 @@
 
 It speaks with **Lisp**.
 
-Depends on the awesome [notcurses](https://github.com/dankamongmen/notcurses) library.
+Depends on the awesome [notcurses](https://github.com/dankamongmen/notcurses) library and some **POSIX** headers.
 
 ---
 

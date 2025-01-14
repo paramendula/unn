@@ -4,7 +4,7 @@
 #include "bind.h"
 #include "commands.h"
 
-// compile-time edit only, for run-time set and del use commands
+// compile-time edit only, for runtime set and del use commands
 
 ubind WINDOW_BINDINGS[] = {
     { 0, "o", { current_window_switch_other } }, // switch focus from current window to the other one

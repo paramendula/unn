@@ -122,13 +122,19 @@ int draw_status(struct ncplane *p) {
     }
 
     swprintf(buffer, sizeof(buffer) - 1, 
-    L"unn [%s] %s [%s] %ls",
+    L"unn <[%d]%s> %s [%s] %ls",
+    // buffer index
+    ((S.current_window) ?
+        (((S.current_window->buff) ?
+            S.current_window->buff->index : 
+            -1)) : 
+        -1),
     // buffer name
     ((S.current_window) ?
         (((S.current_window->buff) ?
             S.current_window->buff->name : 
-            "NO BUFFER")) : 
-        "NO WINDOW"),
+            "*NO BUFFER*")) : 
+        "*NO WINDOW*"),
     // mode
     (flag_is_on(S.flags, FLAG_EDIT) ?
         "EDIT" : 

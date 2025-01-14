@@ -11,6 +11,8 @@
 #include "list.h"
 #include "bind.h"
 
+#define BUFFER_PROMPT 1
+
 typedef void(*callback)(void*);
 
 typedef struct line {

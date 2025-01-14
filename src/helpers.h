@@ -168,6 +168,7 @@ line *read_file_to_lines(FILE *fp, line **last_buffer, int *lc_buffer) {
 
 void cursor_right();
 
+// this technically needs to be moved to commands.h, but who cares?
 void buffer_insert_at_cursor(window *w, wchar_t ch) {
     pthread_mutex_lock(&w->buff->block);
 
@@ -177,6 +178,10 @@ void buffer_insert_at_cursor(window *w, wchar_t ch) {
     pthread_mutex_unlock(&w->buff->block);
 
     order_draw_window(w);
+}
+
+void prompt_cb_file_open(buffer *) {
+
 }
 
 #endif

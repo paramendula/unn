@@ -230,15 +230,42 @@ void buffer_erase_at_cursor() {
 }
 
 void window_current_buffer_switch_new() {
+    buffer *nb = buffer_empty("*empty*");
+    blist_insert(S.blist, nb);
+
+    S.current_window->buff = nb;
+    S.current_window->cur = (offset) {
+        .index = 0,
+        .l = nb->first,
+        .pos = 0,
+    };
+    S.current_window->view = S.current_window->cur;
     
+    order_draw_window(S.current_window);
+    order_draw_status();                // not optimal, locking mutex twice in a row
 }
 
 void window_current_buffer_switch_from_file() {
-    
+    buffer *pb = buffer_empty("*file open prompt*");
+
+    pb->on_destroy = prompt_cb_file_open; // passes an entered filename
+
+    blist_insert(S.blist_prompts, pb);
+
+    // TODO: check if prompt_window already exists, then just switch buffer and redraw only
+    //       the prompt window and status
+
+    window *pw = window_with_buffer(pb);
+
+    S.prompt_window = pw;
+    S.tmp_window = S.current_window;
+    S.current_window = pw;
+
+    on_resize();
 }
 
 void window_current_buffer_save() {
-    
+    // dangerous for now, backing up needed before the saving
 }
 
 void buffer_current_destroy() {
