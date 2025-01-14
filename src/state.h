@@ -22,7 +22,8 @@ typedef struct state {
     struct ncplane *p; // stdplane
 
     grid *grid; // all windows(excluding prompt) grid
-    buffer_list *blist; // list of all current buffers
+    buffer_list *blist; // list of all current buffers(except prompt buffers)
+    buffer_list *blist_prompts; // prompts buffers
     
     window *current_window;
     window *other_window; // window that was current before switched
@@ -53,6 +54,7 @@ typedef struct state {
     char done; // if != 0 then we wait for iloop, dloop to end, deinit everything and exit
 } state;
 
+// currently, memory allocations are either OK or panic
 int state_init(state *s, err *e) {
     notcurses_options opt = { 0 };
 
@@ -95,6 +97,7 @@ int state_init(state *s, err *e) {
 
     s->grid = (grid *)calloc(1, sizeof(*s->grid));
     s->blist = (buffer_list *)calloc(1, sizeof(*s->blist));
+    s->blist_prompts = (buffer_list *)calloc(1, sizeof(*s->blist_prompts));
     s->flags = 0;
 
     s->binds_move = binds_empty(); // to be filled after initialization
@@ -130,6 +133,7 @@ void state_deinit(state *s) {
     if(s->nc) notcurses_stop(s->nc);
     grid_free(s->grid);
     blist_free(s->blist);
+    blist_free(s->blist_prompts);
 
     binds_free(s->binds_move);
     binds_free(s->binds_edit);

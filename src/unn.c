@@ -16,12 +16,19 @@
 
         unn.c
 
+    !!  Multithreading problems do currently exist,
+        but certainly are going to be fixed in the
+    !!  LISP version of UNN
+
     TODO(appropximated):
-        prompting
-        implement the binds
-        add more binds for MVP
+        prompting(special window located just above status, emacs and vim-like)
+        imeplement left binds add more binds for MVP
         text stylizing for scripts
+            colored text
+            bold, italicized, pale(dimmed),
+                understrike(?), throughstrike(?)
         window/buffer additionals for scripts
+            pop-up windows for autocompletion selection and hints
 
         Scheme Lisp support/script
             Parentheses highlighting
@@ -91,6 +98,7 @@ void unn_init() {
 
     logg("Begin\n");
 
+    fclose(fopen("logs.txt", "w")); // empty the logs file
     pthread_mutex_init(&log_mutex, NULL);
 
     state_init(&S, &e);

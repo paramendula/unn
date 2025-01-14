@@ -7,21 +7,31 @@
 // compile-time edit only, for run-time set and del use commands
 
 ubind WINDOW_BINDINGS[] = {
+    { 0, "o", { current_window_switch_other } }, // switch focus from current window to the other one
+    { 0, "n", { new_window } }, // create new empty window, focus on it
+    { 0, "b", { current_window_switch_prev } }, // switch focus from current window to the previous one
+    { 0, "n", { current_window_switch_next } }, // switch focus from current window to the next one
+    { 0, "w", { current_window_switch_up } }, // switch focus from current window to the nearest above one
+    { 0, "s", { current_window_switch_left } }, // switch focus from current window to the nearest left one
+    { 0, "k", { current_window_switch_right } }, // switch focus from current window to the nearest right one
+    { 0, "m", { current_window_switch_down } }, // switch focus from current window to the nearest below one
     { 0, NULL, { NULL } },
 };
 
 ubind FILE_BINDINGS[] = {
-    { 0, "o", { NULL } }, // open file in new buffer, switch window's buffer to the new one
-    { 0, "ss", { NULL } }, // save buffer's content to it's path
-    { 0, "so", { NULL } }, // change buffer's path to new one, save buffer's content to it's path
+    { 0, "c", { clear_input_buffer_and_move } }, // exit this continuation
+    { 0, "o", { window_current_buffer_switch_from_file } }, // open file in new buffer, switch window's buffer to the new one
+    { 0, "ss", { window_current_buffer_save } }, // save buffer's content to it's path
+    { 0, "so", { window_current_buffer_save_other } }, // change buffer's path to new one, save buffer's content to it's path
     { 0, NULL, { NULL } },
 };
 
 ubind BUFFER_BINDINGS[] = {
-    { 0, "n", { NULL } }, // create new empty buffer, switch window's buffer to the new one
-    { 0, "dd", { NULL } }, // try to destroy current buffer
-    { 0, "do", { NULL } }, // try to destroy other buffer, selected from help window
-    { 0, "s", { NULL } }, // switch current window's buffer to the new one, selected from help window
+    { 0, "c", { clear_input_buffer_and_move } }, // exit this continuation
+    { 0, "n", { window_current_buffer_switch_new } }, // create new empty buffer, switch window's buffer to the new one
+    { 0, "dd", { buffer_current_destroy } }, // try to destroy current buffer
+    { 0, "do", { buffer_other_destroy } }, // try to destroy other buffer, selected from help window
+    { 0, "s", { window_current_buffer_switch } }, // switch current window's buffer to the new one, selected from help window
     { 0, NULL, { NULL } },
 };
 

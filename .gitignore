@@ -1,7 +1,9 @@
 dependencies
 images
 other
+
+log
 logs.txt
+
 *.out
 unn
-log

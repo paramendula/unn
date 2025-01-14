@@ -5,7 +5,12 @@
 
 #include "panic.h"
 
-// the single possible sane way xD jk
+// the single possible sane way xD joke
+
+// I'm doing this because this UNN's C version is temporary
+// and it's highly unlikely that I'll not have enough memory
+// (also, not like in it's current state UNN would be able to 
+//  function in a memory-low environment)
 
 // Will be abrogated after post-MVP refactoring
 // OR unneeded because UNN will speak with Lisp.

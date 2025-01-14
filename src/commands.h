@@ -229,6 +229,66 @@ void buffer_erase_at_cursor() {
     order_draw_window(S.current_window);
 }
 
+void window_current_buffer_switch_new() {
+    
+}
+
+void window_current_buffer_switch_from_file() {
+    
+}
+
+void window_current_buffer_save() {
+    
+}
+
+void buffer_current_destroy() {
+    
+}
+
+void buffer_other_destroy() {
+    
+}
+
+void window_current_buffer_switch() {
+    
+}
+
+void window_current_buffer_save_other() {
+    
+}
+
+void current_window_switch_other() {
+    
+}
+
+void new_window() {
+    
+}
+
+void current_window_switch_prev() {
+    
+}
+
+void current_window_switch_next() {
+    
+}
+
+void current_window_switch_up() {
+    
+}
+
+void current_window_switch_left() {
+    
+}
+
+void current_window_switch_right() {
+    
+}
+
+void current_window_switch_down() {
+    
+}
+
 // sorry for that
 void _process_edit(wchar_t wch) {
     if(!S.current_window) return;
