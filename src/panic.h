@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 void panic() {
+    printf("***PANICKED***\n\n");
     exit(EXIT_FAILURE);
 }
 

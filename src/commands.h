@@ -213,10 +213,9 @@ void buffer_erase_at_cursor() {
         
         list_remove((list *)S.current_window->buff, (node *)l);
 
-        cur->index--;
         cur->pos = prev->len;
         line_append_str(prev, l->str);
-
+        
         cur->l = prev;
 
         line_free(l);

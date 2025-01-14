@@ -12,6 +12,7 @@ inline static void _line_check(line *l, int amount) {
     if((l->len + amount) <= l->cap) return;
 
     int new_cap = l->cap * 2;
+    while((l->len + amount) > new_cap) new_cap *= 2;
 
     wchar_t *str = (wchar_t *)unn_realloc(l->str, (new_cap + 1) * sizeof(*str));
 
@@ -44,7 +45,6 @@ int line_insert_multi(line *l, wchar_t *wbuff, int len, int index) {
     memcpy(l->str + index, wbuff, sizeof(*wbuff) * len);
 
     l->len += len;
-
     l->str[l->len] = 0;
 
     return 0;

@@ -73,7 +73,7 @@ binds *binds_empty() {
 inline static void _binds_add(binds *b, size_t hash, size_t index, char *seq, tusk cb) {
     bucket **buck_ref = b->bucks + index;
 
-    bucket *buck = (bucket *)malloc(sizeof(*buck));
+    bucket *buck = (bucket *)unn_malloc(sizeof(*buck));
 
     memcpy(buck->bind, seq, 16);
     buck->cb = cb;
@@ -92,6 +92,7 @@ inline static void _binds_add(binds *b, size_t hash, size_t index, char *seq, tu
 
             if(bk->next == NULL) {
                 bk->next = buck;
+                buck->next = NULL;
                 break;
             }
 

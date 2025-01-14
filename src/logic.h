@@ -313,6 +313,13 @@ inline static void _process_input(ncinput *in, wchar_t wch1, ncinput *in2, wchar
         return;
     }
 
+    for(int i = 0; i < S.input_buffer_len; i++) {
+        if(!isprint(S.input_buffer[i])) {
+            S.input_buffer[i] = '?';
+        }
+    }
+    logg("Calling <%s>\n", S.input_buffer);
+
     S.input_buffer[0] = 0;
 
     if(S.input_buffer_len > 1) {
