@@ -126,14 +126,14 @@ void unn_init() {
     first = read_file_to_lines(fp, &last, &lines_count);
     fclose(fp);
 
-    buffer *b1 = (buffer *)buffer_from_lines("ascii_table.scm", first, last, lines_count);
+    buffer *b1 = (buffer *)buffer_from_lines(L"ascii_table.scm", first, last, lines_count);
 
     fp = fopen("other/little-schemes.scm", "rb");
 
     first = read_file_to_lines(fp, &last, &lines_count);
     fclose(fp);
 
-    buffer *b2 = (buffer *)buffer_from_lines("little-schemes.scm", first, last, lines_count);
+    buffer *b2 = (buffer *)buffer_from_lines(L"little-schemes.scm", first, last, lines_count);
 
     blist_insert(S.blist, b1);
     blist_insert(S.blist, b2);

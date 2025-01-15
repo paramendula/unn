@@ -9,7 +9,9 @@
 #include "winbuf.h"
 #include "state.h"
 
-inline static void draw_window_line(struct ncplane *p, window *w, offset view, offset cur, int y1, int x1, int width) {
+// ugly code >:(
+inline static void draw_window_line(struct ncplane *p, window *w, offset view, 
+                                    offset cur, int y1, int x1, int width, int curoff) {
     int len = view.l->len - view.pos;
 
     if(len <= 0) {
@@ -20,7 +22,7 @@ inline static void draw_window_line(struct ncplane *p, window *w, offset view, o
             nccell_set_bg_rgb8(&c, 0, 0, 0);
             nccell_set_fg_rgb8(&c, 255, 255, 255);
 
-            ncplane_putc_yx(S.p, y1, 0, &c);
+            ncplane_putc_yx(S.p, y1, curoff, &c);
         }
         return;
     }
@@ -47,7 +49,7 @@ inline static void draw_window_line(struct ncplane *p, window *w, offset view, o
         nccell_set_bg_rgb8(&c, 0, 0, 0);
         nccell_set_fg_rgb8(&c, 255, 255, 255);
 
-        ncplane_putc_yx(S.p, y1, x1 + cur.pos - view.pos, &c);
+        ncplane_putc_yx(S.p, y1, x1 + cur.pos - view.pos + curoff, &c);
     }
 
     if(not_fully)
@@ -64,17 +66,47 @@ int draw_window(struct ncplane *p, window *w) {
     int width = pos.x2 - pos.x1;
     int height = pos.y2 - pos.y1;
 
-    ncplane_cursor_move_yx(p, pos.y1, pos.x1);
-    ncplane_erase_region(p, pos.y1, pos.x1, height, width);
+    char is_prompt = flag_is_on(w->buff->flags, BUFFER_PROMPT);
+
+    if(!is_prompt) {
+        ncplane_cursor_move_yx(p, pos.y1, pos.x1);
+        ncplane_erase_region(p, pos.y1, pos.x1, (height) ? height : 1, (width) ? width : 1);
+    } else {
+        ncplane_set_fg_rgb8(S.p, 25, 25, 0);
+        ncplane_set_bg_rgb8(S.p, 230, 230, 255);
+
+        for(int i = pos.x1; i <= pos.x2; i++) {
+            ncplane_putchar_yx(S.p, pos.y1, i, ' ');
+        }
+    }
 
     if(!w->buff) return 0;
 
+    int curoff = 0;
+
+    if(is_prompt) {
+        if(w->buff->path) {
+            int path_len = wcslen(w->buff->path);
+            int nw = width - path_len;
+
+            if(nw > 0) {
+                ncplane_putwstr_yx(S.p, pos.y1, pos.x1, w->buff->path);
+                pos.x1 += path_len;
+                width = nw;
+                curoff = path_len;
+            }
+        }
+    }
+
     for(int y = pos.y1; y <= pos.y2; y++) {
         if(!view.l) break;
-        draw_window_line(p, w, view, cur, y, pos.x1, width);
+        draw_window_line(p, w, view, cur, y, pos.x1, width, curoff);
         view.l = view.l->next;
     }
 
+    ncplane_set_fg_rgb8(S.p, 0, 0, 0);
+    ncplane_set_bg_rgb8(S.p, 255, 255, 255);
+    
     return 0;
 }
 
@@ -122,7 +154,7 @@ int draw_status(struct ncplane *p) {
     }
 
     swprintf(buffer, sizeof(buffer) - 1, 
-    L"unn <[%d]%s> %s [%s] %ls",
+    L"unn <[%d]%ls> %s [%s] %ls",
     // buffer index
     ((S.current_window) ?
         (((S.current_window->buff) ?
@@ -133,8 +165,8 @@ int draw_status(struct ncplane *p) {
     ((S.current_window) ?
         (((S.current_window->buff) ?
             S.current_window->buff->name : 
-            "*NO BUFFER*")) : 
-        "*NO WINDOW*"),
+            L"*NO BUFFER*")) : 
+        L"*NO WINDOW*"),
     // mode
     (flag_is_on(S.flags, FLAG_EDIT) ?
         "EDIT" : 

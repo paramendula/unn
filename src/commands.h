@@ -230,7 +230,7 @@ void buffer_erase_at_cursor() {
 }
 
 void window_current_buffer_switch_new() {
-    buffer *nb = buffer_empty("*empty*");
+    buffer *nb = buffer_empty(L"*empty*");
     blist_insert(S.blist, nb);
 
     S.current_window->buff = nb;
@@ -246,22 +246,42 @@ void window_current_buffer_switch_new() {
 }
 
 void window_current_buffer_switch_from_file() {
-    buffer *pb = buffer_empty("*file open prompt*");
+    buffer *pb = buffer_empty(L"*file open prompt*");
+    pb->path = L"Open file: ";
+    pb->move_binds = S.binds_prompt;
+    pb->edit_binds = S.binds_prompt;
+    pb->flags = BUFFER_PROMPT;
 
-    pb->on_destroy = prompt_cb_file_open; // passes an entered filename
+    pb->on_destroy = (callback)prompt_cb_file_open; // passes an entered filename
 
     blist_insert(S.blist_prompts, pb);
 
-    // TODO: check if prompt_window already exists, then just switch buffer and redraw only
-    //       the prompt window and status
+    window *pw;
+    if(!S.prompt_window) {
+        pw = window_with_buffer(pb);
 
-    window *pw = window_with_buffer(pb);
+        S.prompt_window = pw;
+        S.tmp_window = S.current_window;
 
-    S.prompt_window = pw;
-    S.tmp_window = S.current_window;
-    S.current_window = pw;
+        S.current_window = pw;
 
-    on_resize();
+        on_resize();
+    } else {
+        pw = S.prompt_window;
+        pw->buff = pb;
+        pw->cur = (offset) {
+            .index = 0,
+            .pos = 0,
+            .l = pb->first,
+        };
+        pw->view = pw->cur;
+
+        S.current_window = pw;
+
+        order_draw_window(S.tmp_window);
+        order_draw_window(S.prompt_window);
+        order_draw_status();
+    }
 }
 
 void window_current_buffer_save() {

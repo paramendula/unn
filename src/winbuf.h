@@ -28,7 +28,7 @@ typedef struct buffer {
     int lines_count;
     line *first, *last;
 
-    char *path, *name;
+    wchar_t *path, *name;
     int index;
     int flags;
 
@@ -112,11 +112,11 @@ inline static list *buffer_as_list(buffer *b) {
 }
 
 
-buffer *buffer_from_lines(const char *name, line *first, line *last, int line_count) {
+buffer *buffer_from_lines(const wchar_t *name, line *first, line *last, int line_count) {
     buffer *b = (buffer *)unn_calloc(1, sizeof(*b));
 
-    char *name_copy = (char *)unn_malloc(strlen(name) + 1);
-    strcpy(name_copy, name);
+    wchar_t *name_copy = (wchar_t *)unn_malloc((wcslen(name) + 1) * sizeof(*name_copy));
+    wcscpy(name_copy, name);
 
     b->first = first;
     b->last = last;
@@ -133,7 +133,7 @@ buffer *buffer_from_lines(const char *name, line *first, line *last, int line_co
     return b;
 }
 
-inline static buffer *buffer_empty(const char *name) {
+inline static buffer *buffer_empty(const wchar_t *name) {
     line *l = line_empty(4);
     return buffer_from_lines(name, l, l, 1);
 }
@@ -211,7 +211,7 @@ window *window_with_buffer(buffer *buff) {
     return win;
 }
 
-inline static window *window_empty(char *buff_name) {
+inline static window *window_empty(wchar_t *buff_name) {
     return window_with_buffer(buffer_empty(buff_name));
 }
 

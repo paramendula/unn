@@ -141,6 +141,7 @@ void *draw_loop(void*) {
         if(d_a) {
             draw_status(S.p);
             draw_grid(S.p, S.grid, 0);
+            if(S.prompt_window) draw_window(S.p, S.prompt_window);
 
             notcurses_render(S.nc);
             pthread_mutex_unlock(&S.draw_block);
@@ -158,9 +159,9 @@ void *draw_loop(void*) {
         if(d_g) {
             draw_grid(S.p, S.grid, 0);
 
-            pthread_mutex_unlock(&S.draw_block);
             notcurses_render(S.nc);
-
+            pthread_mutex_unlock(&S.draw_block);
+            
             logg("Drawn: grid\n");
             continue;
         }
@@ -175,13 +176,15 @@ void *draw_loop(void*) {
                 pthread_mutex_unlock(&w->buff->block);
             }
 
-            pthread_mutex_unlock(&S.draw_block);
             notcurses_render(S.nc);
-
+            pthread_mutex_unlock(&S.draw_block);
+            
             logg("Drawn: windows\n");
         } else if(d_s) {
-            pthread_mutex_unlock(&S.draw_block);
             notcurses_render(S.nc);
+            pthread_mutex_unlock(&S.draw_block);
+        } else {
+            pthread_mutex_unlock(&S.draw_block);
         }
     }
 
@@ -201,12 +204,19 @@ void status_set_message(wchar_t *fmt, ...) {
     order_draw_status();
 }
 
+// also includes prompt_window
 void grid_fit_full() {
     unsigned int max_y, max_x;
     ncplane_dim_yx(S.p, &max_y, &max_x);
 
     if(S.prompt_window) {
         max_y -= 1;
+        S.prompt_window->pos = (rect) {
+            .y1 = max_y - 1,
+            .x1 = 0,
+            .y2 = max_y - 1,
+            .x2 = max_x - 1,
+        };
     }
 
     grid_fit(S.grid, (rect) {
