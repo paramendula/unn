@@ -13,6 +13,8 @@
 
 #define BUFFER_PROMPT 1
 
+#define WINDOW_LINES 1
+
 typedef void(*callback)(void*);
 
 typedef struct line {
@@ -77,6 +79,10 @@ typedef struct window {
     rect loc, pos; // grid, plane
     offset view, cur;
     buffer *buff;
+
+    int flags;
+
+    int last_pos; // for cursor vertical movement features
 
     callback on_destroy;
 } window;

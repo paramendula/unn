@@ -14,6 +14,7 @@ inline static void draw_window_line(struct ncplane *p, window *w, offset view,
                                     offset cur, int y1, int x1, int width, int curoff) {
     int len = view.l->len - view.pos;
 
+    // empty line
     if(len <= 0) {
         if(cur.l == view.l) { // if we have cursor at an empty line
             nccell c = { 0 };
@@ -27,6 +28,7 @@ inline static void draw_window_line(struct ncplane *p, window *w, offset view,
         return;
     }
     
+    // if window is not wide enough for the line
     char not_fully = len > width;
 
     wchar_t *wcstr = view.l->str + view.pos;
@@ -40,7 +42,8 @@ inline static void draw_window_line(struct ncplane *p, window *w, offset view,
     ncplane_cursor_move_yx(p, y1, x1);
     ncplane_putwstr(p, wcstr);
 
-    if(cur.l == view.l && (cur.pos >= view.pos)) { // if we have cursor at an empty line
+    // draw cursor
+    if(cur.l == view.l && (cur.pos >= view.pos)) {
         nccell c = { 0 };
 
         // L' ' if cursor is at the end, after the last char
@@ -67,7 +70,9 @@ int draw_window(struct ncplane *p, window *w) {
     int height = pos.y2 - pos.y1;
 
     char is_prompt = flag_is_on(w->buff->flags, BUFFER_PROMPT);
+    char is_focused = S.current_window == w;
 
+    // different coloring if prompt window
     if(!is_prompt) {
         ncplane_cursor_move_yx(p, pos.y1, pos.x1);
         ncplane_erase_region(p, pos.y1, pos.x1, (height) ? height : 1, (width) ? width : 1);
@@ -84,6 +89,7 @@ int draw_window(struct ncplane *p, window *w) {
 
     int curoff = 0;
 
+    // if prompt window, write the prompt string at the beginning and offset the cursor pos
     if(is_prompt) {
         if(w->buff->path) {
             int path_len = wcslen(w->buff->path);

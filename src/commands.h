@@ -305,7 +305,15 @@ void window_current_buffer_save_other() {
 }
 
 void current_window_switch_other() {
-    
+    if(!S.other_window) return;
+
+    window *other = S.other_window;
+    S.other_window = S.current_window;
+    S.current_window = other;
+
+    if(S.other_window) order_draw_window(S.other_window);
+    order_draw_window(S.current_window);
+    order_draw_status();
 }
 
 void new_window() {

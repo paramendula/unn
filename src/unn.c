@@ -157,6 +157,7 @@ void unn_init() {
     grid_insert(S.grid, w1);
     grid_insert(S.grid, w2);
     S.current_window = w1;
+    S.other_window = w2;
 
     logg("Initial windows/buffers created\n");
 
