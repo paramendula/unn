@@ -8,38 +8,6 @@
 
 #include <pthread.h>
 
-void buffer_destroy(buffer *b) {
-    blist_remove(S.blist, b);
-    
-    callback on_destroy = b->on_destroy;
-    if(on_destroy) on_destroy(b);
-
-    window *w = (window *)b->current_window;
-    if(w) {
-        w->buff = NULL;
-        order_draw_window(w);
-    }
-
-    buffer_free(b);
-}
-
-void window_destroy(window *w) {
-    if(S.prompt_window == w) {
-        S.prompt_window = NULL;
-    } else {
-        grid_remove(S.grid, w);
-    }
-
-    callback on_destroy = w->on_destroy;
-    if(on_destroy) on_destroy(w);
-
-    if(S.current_window == w) {
-        S.current_window = S.grid->first;
-    }
-
-    free(w);
-}
-
 void clear_input_buffer_and_move() {
     S.input_buffer[0] = 0;
     S.input_buffer_len = 0;
@@ -229,7 +197,7 @@ void buffer_erase_at_cursor() {
     order_draw_window(S.current_window);
 }
 
-void window_current_buffer_switch_new() {
+void current_buffer_switch_new() {
     buffer *nb = buffer_empty(L"*empty*");
     blist_insert(S.blist, nb);
 
@@ -245,12 +213,16 @@ void window_current_buffer_switch_new() {
     order_draw_status();                // not optimal, locking mutex twice in a row
 }
 
-void window_current_buffer_switch_from_file() {
+void current_buffer_switch_from_file() {
     buffer *pb = buffer_empty(L"*file open prompt*");
     pb->path = L"Open file: ";
     pb->move_binds = S.binds_prompt;
     pb->edit_binds = S.binds_prompt;
     pb->flags = BUFFER_PROMPT;
+
+    // TODO: create window if none exist
+
+    pb->userdata = S.current_window; // save current window as userdata
 
     pb->on_destroy = (callback)prompt_cb_file_open; // passes an entered filename
 
@@ -284,11 +256,11 @@ void window_current_buffer_switch_from_file() {
     }
 }
 
-void window_current_buffer_save() {
+void current_buffer_save() {
     // dangerous for now, backing up needed before the saving
 }
 
-void buffer_current_destroy() {
+void current_buffer_destroy() {
     
 }
 
@@ -296,11 +268,11 @@ void buffer_other_destroy() {
     
 }
 
-void window_current_buffer_switch() {
+void current_buffer_switch_other() {
     
 }
 
-void window_current_buffer_save_other() {
+void current_buffer_save_other() {
     
 }
 
@@ -316,7 +288,7 @@ void current_window_switch_other() {
     order_draw_status();
 }
 
-void new_window() {
+void new_window_command() {
     
 }
 

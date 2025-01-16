@@ -70,7 +70,7 @@ int draw_window(struct ncplane *p, window *w) {
     int height = pos.y2 - pos.y1;
 
     char is_prompt = flag_is_on(w->buff->flags, BUFFER_PROMPT);
-    char is_focused = S.current_window == w;
+    // char is_focused = S.current_window == w;
 
     // different coloring if prompt window
     if(!is_prompt) {

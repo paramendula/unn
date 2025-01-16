@@ -8,7 +8,7 @@
 
 ubind WINDOW_BINDINGS[] = {
     { 0, "o", { current_window_switch_other } }, // switch focus from current window to the other one
-    { 0, "n", { new_window } }, // create new empty window, focus on it
+    { 0, "n", { new_window_command } }, // create new empty window, focus on it
     { 0, "b", { current_window_switch_prev } }, // switch focus from current window to the previous one
     { 0, "n", { current_window_switch_next } }, // switch focus from current window to the next one
     { 0, "w", { current_window_switch_up } }, // switch focus from current window to the nearest above one
@@ -20,18 +20,18 @@ ubind WINDOW_BINDINGS[] = {
 
 ubind FILE_BINDINGS[] = {
     { 0, "c", { clear_input_buffer_and_move } }, // exit this continuation
-    { 0, "o", { window_current_buffer_switch_from_file } }, // open file in new buffer, switch window's buffer to the new one
-    { 0, "ss", { window_current_buffer_save } }, // save buffer's content to it's path
-    { 0, "so", { window_current_buffer_save_other } }, // change buffer's path to new one, save buffer's content to it's path
+    { 0, "o", { current_buffer_switch_from_file } }, // open file in new buffer, switch window's buffer to the new one
+    { 0, "ss", { current_buffer_save } }, // save buffer's content to it's path
+    { 0, "so", { current_buffer_save_other } }, // change buffer's path to new one, save buffer's content to it's path
     { 0, NULL, { NULL } },
 };
 
 ubind BUFFER_BINDINGS[] = {
     { 0, "c", { clear_input_buffer_and_move } }, // exit this continuation
-    { 0, "n", { window_current_buffer_switch_new } }, // create new empty buffer, switch window's buffer to the new one
-    { 0, "dd", { buffer_current_destroy } }, // try to destroy current buffer
+    { 0, "n", { current_buffer_switch_new } }, // create new empty buffer, switch window's buffer to the new one
+    { 0, "dd", { current_buffer_destroy } }, // try to destroy current buffer
     { 0, "do", { buffer_other_destroy } }, // try to destroy other buffer, selected from help window
-    { 0, "s", { window_current_buffer_switch } }, // switch current window's buffer to the new one, selected from help window
+    { 0, "s", { current_buffer_switch_other } }, // switch current window's buffer to the new one, selected from help window
     { 0, NULL, { NULL } },
 };
 

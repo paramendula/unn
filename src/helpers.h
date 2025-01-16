@@ -8,6 +8,8 @@
 #include <wchar.h>
 #include <string.h>
 
+#include <sys/stat.h>
+
 inline static void _line_check(line *l, int amount) {
     if((l->len + amount) <= l->cap) return;
 
@@ -180,8 +182,121 @@ void buffer_insert_at_cursor(window *w, wchar_t ch) {
     order_draw_window(w);
 }
 
-void prompt_cb_file_open(buffer *) {
+void buffer_destroy(buffer *b) {
+    if(flag_is_on(b->flags, BUFFER_PROMPT)) {
+        blist_remove(S.blist_prompts, b);
+    } else {
+        blist_remove(S.blist, b);
+    }
+    
+    callback on_destroy = b->on_destroy;
+    if(on_destroy) on_destroy(b);
 
+    window *w = (window *)b->current_window;
+    if(w) {
+        w->buff = NULL;
+        order_draw_window(w);
+    }
+
+    buffer_free(b);
+}
+
+void window_destroy(window *w) {
+    if(S.prompt_window == w) {
+        S.prompt_window = NULL;
+    } else {
+        grid_remove(S.grid, w);
+    }
+
+    callback on_destroy = w->on_destroy;
+    if(on_destroy) on_destroy(w);
+
+    if(S.current_window == w) {
+        S.current_window = S.grid->first;
+    }
+
+    free(w);
+}
+
+void prompt_cb_default(buffer *b) {
+    window *w = (window *)b->current_window;
+
+    if(w) {
+        buffer *nb = S.blist_prompts->last;
+        if(!nb) {
+            window_destroy(w);
+        } else {
+            w->buff = nb;
+            order_draw_window(w);
+        }
+
+        b->current_window = NULL; // stop buffer_destroy from modifying it
+    }
+}
+
+// we assume that prompt buffer's line count is 1
+void prompt_cb_file_open(buffer *b) {
+    wchar_t *path = b->first->str;
+    free(b->first);
+    b->first = NULL;
+    b->last = NULL;
+
+    char raw_path[512] = { 0 };
+    // unsafe
+    wcstombs(raw_path, path, sizeof(raw_path) - 1);
+
+    buffer *nb;
+
+    struct stat s;
+    if(stat(raw_path, &s) || S_ISDIR(s.st_mode)) { // also check if folder
+        goto bad;
+    } else {
+        line *first, *last;
+        int line_count;
+        
+        FILE *fp = fopen(raw_path, "rb");
+
+        if(!fp) {
+            goto bad;
+        }
+
+        first = read_file_to_lines(fp, &last, &line_count);
+
+        fclose(fp);
+
+        if(!first) {
+            goto bad;
+        }
+
+        nb = buffer_from_lines(path, first, last, line_count);
+        nb->path = path;
+    }
+
+    goto good;
+
+    bad: // ***
+
+    free(path);
+
+    nb = buffer_empty(L"*file-open-error*");
+
+    line *l = nb->first;
+    line_insert_str(l, L"unable to open/read the file", 0);
+
+    good: // ***
+
+    blist_insert(S.blist, nb);
+
+    window *w = (window *)b->userdata;
+    w->buff = nb;
+    w->cur = (offset) {
+        .index = 0,
+        .pos = 0,
+        .l = nb->first,
+    };
+    w->view = w->cur;
+    
+    prompt_cb_default(b);
 }
 
 #endif

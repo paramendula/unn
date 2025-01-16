@@ -42,6 +42,8 @@ typedef struct buffer {
     binds *edit_binds;
 
     void *current_window;
+
+    void *userdata;
 } buffer;
 
 typedef struct int_node {
