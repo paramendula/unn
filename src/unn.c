@@ -22,11 +22,19 @@
 
     TODO(appropximated):
         prompting(special window located just above status, emacs and vim-like)
-        imeplement left binds add more binds for MVP
+
+        ! fix cursor movement and window drawing
+            cursor can go beyond the window's border(currently checks only line len)
+            somehow cursor falls to the left-most window when placed on an empty line
+                (in two-windows situation)
+
+        imeplement the left binds, add more binds for MVP
+
         text stylizing for scripts
             colored text
             bold, italicized, pale(dimmed),
                 understrike(?), throughstrike(?)
+
         window/buffer additionals for scripts
             pop-up windows for autocompletion selection and hints
 
@@ -41,7 +49,11 @@
         Scheme Lisp integration
 
         - MVP. From now on Scheme code is prioritized
+            Will I be using SemVer? If so, MVP is 1.0.0
+            Thus, releases are needed(archives of precompiled binaries + source code?)
+        - Code refactoring and various fixes are obvious
 
+        (for Scheme Lisp)
         coroutines
         object system
 
@@ -50,6 +62,8 @@
         LSP support? clangd is VERY needed
 
         rewrite unn in Scheme fully except for notcurses bindings
+            (maybe leave C unn core available?)
+
         unn modularity
 */
 

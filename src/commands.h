@@ -141,6 +141,12 @@ void try_exit() {
 void buffer_newline_at_cursor() {
     pthread_mutex_lock(&S.current_window->buff->block);
 
+    if(flag_is_on(S.current_window->buff->flags, BUFFER_PROMPT)) {
+        pthread_mutex_unlock(&S.current_window->buff->block);
+        buffer_destroy(S.current_window->buff); // call the prompt cb
+        return;
+    }
+
     offset *cur = &S.current_window->cur;
 
     int new = (cur->l->len - cur->pos);
@@ -220,7 +226,9 @@ void current_buffer_switch_from_file() {
     pb->edit_binds = S.binds_prompt;
     pb->flags = BUFFER_PROMPT;
 
-    // TODO: create window if none exist
+    if(!S.current_window) {
+        // TODO
+    }
 
     pb->userdata = S.current_window; // save current window as userdata
 
@@ -232,6 +240,8 @@ void current_buffer_switch_from_file() {
     if(!S.prompt_window) {
         pw = window_with_buffer(pb);
 
+        pb->current_window = pw;
+
         S.prompt_window = pw;
         S.tmp_window = S.current_window;
 
@@ -240,6 +250,9 @@ void current_buffer_switch_from_file() {
         on_resize();
     } else {
         pw = S.prompt_window;
+
+        pb->current_window = pw;
+
         pw->buff = pb;
         pw->cur = (offset) {
             .index = 0,
@@ -261,19 +274,20 @@ void current_buffer_save() {
 }
 
 void current_buffer_destroy() {
-    
+    if(!S.current_window) return;
+    buffer_destroy(S.current_window->buff);
 }
 
 void buffer_other_destroy() {
-    
+    // TODO
 }
 
 void current_buffer_switch_other() {
-    
+    // TODO
 }
 
 void current_buffer_save_other() {
-    
+    // TODO
 }
 
 void current_window_switch_other() {
@@ -289,31 +303,31 @@ void current_window_switch_other() {
 }
 
 void new_window_command() {
-    
+    // TODO
 }
 
 void current_window_switch_prev() {
-    
+    // TODO
 }
 
 void current_window_switch_next() {
-    
+    // TODO
 }
 
 void current_window_switch_up() {
-    
+    // TODO
 }
 
 void current_window_switch_left() {
-    
+    // TODO
 }
 
 void current_window_switch_right() {
-    
+    // TODO
 }
 
 void current_window_switch_down() {
-    
+    // TODO
 }
 
 // sorry for that

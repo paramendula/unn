@@ -187,8 +187,15 @@ int blist_remove(buffer_list *blist, buffer *b) {
     list_remove((list *)blist, (node *)b);
 
     int_node *n;
-    for(n = blist->indexes.first; n->next != NULL; n = n->next) {
+    for(n = blist->indexes.first; n != NULL && n->next != NULL; n = n->next) {
         if(n->val > i) break;
+    }
+
+    if(!n) {
+        blist->indexes.first = ni;
+        blist->indexes.last = ni;
+        blist->indexes.count++;
+        return 0;
     }
 
     if(n->prev == NULL && (n->val < i)) {

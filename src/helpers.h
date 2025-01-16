@@ -194,7 +194,8 @@ void buffer_destroy(buffer *b) {
 
     window *w = (window *)b->current_window;
     if(w) {
-        w->buff = NULL;
+        w->buff = buffer_empty(L"*empty*");
+        blist_insert(S.blist, w->buff);
         order_draw_window(w);
     }
 
@@ -218,6 +219,10 @@ void window_destroy(window *w) {
     free(w);
 }
 
+void on_resize(); // this is why I will move UNN to Lisp!
+                  // I could've added a ton of them in a single header,
+                  // but that's even uglier!
+
 void prompt_cb_default(buffer *b) {
     window *w = (window *)b->current_window;
 
@@ -225,6 +230,7 @@ void prompt_cb_default(buffer *b) {
         buffer *nb = S.blist_prompts->last;
         if(!nb) {
             window_destroy(w);
+            on_resize();
         } else {
             w->buff = nb;
             order_draw_window(w);
@@ -295,6 +301,10 @@ void prompt_cb_file_open(buffer *b) {
         .l = nb->first,
     };
     w->view = w->cur;
+
+    S.current_window = w;
+
+    order_draw_window(w);
     
     prompt_cb_default(b);
 }
