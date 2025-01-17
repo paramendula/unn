@@ -16,7 +16,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-// Unnamed is Not Named
+// UNN's Not Named
+// (or Unnamed's Not Named, same thing)
 // a newly-born not-yet-finished "text editor"
 // with high amibitions and far-fetched goals
 
@@ -39,14 +40,10 @@
     !!  LISP version of UNN
 
     TODO(appropximated):
+        ! visual glitches on resize
+            status somtimes not properly drawn + duplicates
+
         prompting(special window located just above status, emacs and vim-like)
-
-        ! fix cursor movement and window drawing
-            cursor can go beyond the window's border(currently checks only line len)
-            somehow cursor falls to the left-most window when placed on an empty line
-                (in two-windows situation)
-
-        ! fix, windows somehow overlap a bit
 
         imeplement the left binds, add more binds for MVP
 
