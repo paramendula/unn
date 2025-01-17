@@ -128,11 +128,24 @@ void cursor_right() {
 
     int times = (state_flag_is_on(FLAG_FAST)) ? 5 : 1;
 
-    int n = off->pos + times;
+    int width = (S.current_window->pos.x2 - S.current_window->pos.x1)
+     + S.current_window->view.pos;
 
-    if(n <= off->l->len) {
-        off->index += times;
-        off->pos = n;
+    int cpos = off->pos;
+    int n = times;
+    int npos = cpos + n;
+
+    if(npos > off->l->len) {
+        n -= npos - off->l->len;
+    }
+
+    if(npos >= width) {
+        n -= npos - width + 1;
+    }
+
+    if(n > 0) {
+        off->index += n;
+        off->pos += n;
         order_draw_window(S.current_window);
     }
 
@@ -351,7 +364,21 @@ void current_window_switch_next() {
 }
 
 void current_window_switch_up() {
-    // TODO
+    if(!S.current_window) return;
+
+    for(window *w = S.grid->first; w != NULL; w = w->next) {
+        if(w == S.current_window) continue;
+        if(w->loc.y2 >= S.current_window->loc.y2) continue; // possibly use pos instead of loc?
+        if((S.current_window->loc.x1 > w->loc.x1)) continue;
+
+        S.other_window = S.current_window;
+        S.current_window = w;
+        
+        order_draw_window(S.other_window);
+        order_draw_window(S.current_window);
+        order_draw_status();
+        return;
+    }
 }
 
 void current_window_switch_left() {
@@ -363,7 +390,22 @@ void current_window_switch_right() {
 }
 
 void current_window_switch_down() {
-    // TODO
+    if(!S.current_window) return;
+
+    for(window *w = S.grid->first; w != NULL; w = w->next) {
+        if(w == S.current_window) continue;
+        if(w->loc.y2 <= S.current_window->loc.y2) continue; // possibly use pos instead of loc?
+        if((S.current_window->loc.x1 > w->loc.x1)) continue;
+
+        S.other_window = S.current_window;
+        S.current_window = w;
+
+        order_draw_window(S.other_window);
+        order_draw_window(S.current_window);
+        order_draw_status();
+
+        return;
+    }
 }
 
 // sorry for that

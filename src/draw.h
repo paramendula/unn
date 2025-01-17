@@ -41,7 +41,7 @@ inline static void draw_window_line(struct ncplane *p, window *w, offset view,
             nccell_set_bg_rgb8(&c, 0, 0, 0);
             nccell_set_fg_rgb8(&c, 255, 255, 255);
 
-            ncplane_putc_yx(S.p, y1, curoff, &c);
+            ncplane_putc_yx(S.p, y1, x1 + curoff, &c);
         }
         return;
     }
@@ -70,7 +70,13 @@ inline static void draw_window_line(struct ncplane *p, window *w, offset view,
         nccell_set_bg_rgb8(&c, 0, 0, 0);
         nccell_set_fg_rgb8(&c, 255, 255, 255);
 
-        ncplane_putc_yx(S.p, y1, x1 + cur.pos - view.pos + curoff, &c);
+        if((cur.pos <= (view.pos + width - 1))) {
+            ncplane_putc_yx(S.p, y1, x1 + cur.pos - view.pos, &c);
+        } 
+        // TODO
+        /* else {  // if out of view down the line
+            ncplane_putc_yx(S.p, y1, x1 + width - 1, &c);
+        } */
     }
 
     if(not_fully)
@@ -86,6 +92,9 @@ int draw_window(struct ncplane *p, window *w) {
 
     int width = pos.x2 - pos.x1;
     int height = pos.y2 - pos.y1;
+
+    logg("Drawing window: %d %d %d %d - %d %d\n",
+    pos.y1, pos.x1, pos.y2, pos.x2, height, width);
 
     char is_prompt = flag_is_on(w->buff->flags, BUFFER_PROMPT);
     // TODO: draw unfocused windows differently

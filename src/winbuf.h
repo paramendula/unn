@@ -262,8 +262,8 @@ int grid_fit(grid *g, rect pos) {
     int h_rem = pos_height % g->height;
     int w_rem = pos_width % g->width;
 
-    int x_last = g->height;
-    int y_last = g->width;
+    int y_last = g->height;
+    int x_last = g->width;
 
     for(window *win = g->first; win != NULL; win = win->next) {
         rect loc = win->loc;
