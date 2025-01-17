@@ -61,22 +61,24 @@ inline static void draw_window_line(struct ncplane *p, window *w, offset view,
     ncplane_putwstr(p, wcstr);
 
     // draw cursor
-    if(cur.l == view.l && (cur.pos >= view.pos)) {
-        nccell c = { 0 };
+    if(cur.l == view.l) {
+        if(cur.pos >= view.pos) {
+            nccell c = { 0 };
 
-        // L' ' if cursor is at the end, after the last char
-        c.gcluster = (cur.pos < view.l->len) ? cur.l->str[cur.pos] : L' ';
+            // L' ' if cursor is at the end, after the last char
+            c.gcluster = (cur.pos < view.l->len) ? cur.l->str[cur.pos] : L' ';
 
-        nccell_set_bg_rgb8(&c, 0, 0, 0);
-        nccell_set_fg_rgb8(&c, 255, 255, 255);
+            nccell_set_bg_rgb8(&c, 0, 0, 0);
+            nccell_set_fg_rgb8(&c, 255, 255, 255);
 
-        if((cur.pos <= (view.pos + width - 1))) {
-            ncplane_putc_yx(S.p, y1, x1 + cur.pos - view.pos, &c);
-        } 
-        // TODO
-        /* else {  // if out of view down the line
-            ncplane_putc_yx(S.p, y1, x1 + width - 1, &c);
-        } */
+            if((cur.pos <= (view.pos + width - 1))) {
+                ncplane_putc_yx(S.p, y1, x1 + cur.pos - view.pos, &c);
+            } 
+            // TODO
+            /* else {  // if out of view down the line
+                ncplane_putc_yx(S.p, y1, x1 + width - 1, &c);
+            } */
+        }
     }
 
     if(not_fully)

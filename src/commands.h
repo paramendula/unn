@@ -123,7 +123,9 @@ void cursor_left() {
 }
 
 void cursor_right() {
-    offset *off = (state_flag_is_on(FLAG_VIEW)) ?
+    char is_view = state_flag_is_on(FLAG_VIEW);
+
+    offset *off = (is_view) ?
     &S.current_window->view : &S.current_window->cur;
 
     int times = (state_flag_is_on(FLAG_FAST)) ? 5 : 1;
@@ -139,7 +141,7 @@ void cursor_right() {
         n -= npos - off->l->len;
     }
 
-    if(npos >= width) {
+    if(!is_view && npos >= width) {
         n -= npos - width + 1;
     }
 
