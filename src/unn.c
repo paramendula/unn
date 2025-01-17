@@ -46,10 +46,12 @@
             somehow cursor falls to the left-most window when placed on an empty line
                 (in two-windows situation)
 
+        ! fix, windows somehow overlap a bit
+
         imeplement the left binds, add more binds for MVP
 
         text stylizing for scripts
-            colored text
+            colored text, blinking,
             bold, italicized, pale(dimmed),
                 understrike(?), throughstrike(?)
 

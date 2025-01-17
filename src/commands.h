@@ -325,11 +325,29 @@ void new_window_command() {
 }
 
 void current_window_switch_prev() {
-    // TODO
+    if(!S.current_window) return;
+    window *prev = S.current_window->prev;
+
+    if(!prev) return;
+
+    S.current_window = prev;
+
+    order_draw_window(S.current_window); // redraw both windows
+    order_draw_window(S.current_window->next); // TODO: order multiple draws sim-ly
+    order_draw_status();
 }
 
 void current_window_switch_next() {
-    // TODO
+    if(!S.current_window) return;
+    window *next = S.current_window->next;
+
+    if(!next) return;
+
+    S.current_window = next;
+
+    order_draw_window(S.current_window); // redraw both windows
+    order_draw_window(S.current_window->prev); // TODO: order multiple draws sim-ly
+    order_draw_status();
 }
 
 void current_window_switch_up() {
