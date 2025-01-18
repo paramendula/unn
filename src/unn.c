@@ -24,7 +24,7 @@
 /*
     HEADERS(hdr[deps]):
 
-        panic flags list
+        panic flags list lisp
         err[panic] mem[panic] bind[mem]
         winbuf[mem flags list]
         state[err bind winbuf]
@@ -42,6 +42,24 @@
     TODO(appropximated):
         ! visual glitches on resize
             status somtimes not properly drawn + duplicates
+
+        add matrix of cells to grid for window switching commands
+        make grid more flexible, so that static windows like prompt can be made easily
+        buffer list and prompt buffer list indexes are separate
+        cursor and view moving needs to be interconnected
+        text rendering zone in windows shouldn't take all available space
+            because we need additions such as line numbering, markers, etc.
+        window switching needs to be simplified, general functions implemented
+        error propagation needs to be implemented with error windows
+        error and help windows depend on flexible grid
+            also it must be possible to create one big "helper window"
+            that logs important events, errors, etc.
+        bind system must be more complex to be able to handle non-hardcoded
+            non-printable characters, numerical non-hardcoded input without prompting
+        draw ordering functions are not flexible, more general ordering functions needed
+        status drawing alogrithm is crude and inflexible
+        parameterizing buffers and state is used by flags, which is inflexible and crude
+        (half of those are solvable by using Lisp... But I'm a hard worker and love C! jk)
 
         prompting(special window located just above status, emacs and vim-like)
 
@@ -69,6 +87,8 @@
             Will I be using SemVer? If so, MVP is 1.0.0
             Thus, releases are needed(archives of precompiled binaries + source code?)
         - Code refactoring and various fixes are obvious
+
+        also current bindings must be refactored for better usability
 
         (for Scheme Lisp)
         coroutines

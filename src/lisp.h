@@ -24,8 +24,11 @@
 
 #include <wchar.h>
 
-// try to evaluate **ex** as proper Scheme Lisp Sexp
+// try to evaluate ex as a proper Scheme Lisp Sexp
 // returns 0 if everything is OK, any other value if ERR
 extern int lisp_run(wchar_t *ex);
+
+// how do I propagate C functions to Lisp without using implementation-specific structures?
+// possibly using thunks
 
 #endif

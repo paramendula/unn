@@ -153,6 +153,14 @@ void cursor_right() {
 
 }
 
+void cursor_leap_word() {
+
+}
+
+void cursor_leap_word_back() {
+    
+}
+
 void cursor_fastmode_toggle() {
     state_flag_toggle(FLAG_FAST);
 }
@@ -383,6 +391,8 @@ void current_window_switch_up() {
     }
 }
 
+// grid needs to be modified for implementing those
+
 void current_window_switch_left() {
     // TODO
 }
@@ -408,6 +418,14 @@ void current_window_switch_down() {
 
         return;
     }
+}
+
+void current_window_destroy() {
+
+}
+
+void window_other_destroy() {
+
 }
 
 // sorry for that
