@@ -327,4 +327,130 @@ void prompt_cb_file_open(buffer *b) {
     prompt_cb_default(b);
 }
 
+int cursor_move(window *w, int dy, int dx, char no_cur);
+
+// similar to cursor_move, for comments check it out
+int view_move(window *w, int dy, int dx, char no_cur) {
+    if(!w) return -1;
+
+    offset *cur = &w->cur;
+    offset *view = &w->view;
+
+    int height = w->pos.y2 - w->pos.y1 + 1;
+
+    line *l = cur->l;
+
+    if(!l) return -1;
+
+    int cur_dy = 0;
+    int cur_dx = 0;
+
+    if(dy) {
+
+    }
+
+    if(dx) {
+
+    }
+
+    if(!no_cur && (cur_dy || cur_dx)) {
+        cursor_move(w, cur_dy, cur_dx, 1);
+    }
+
+    return 0;
+}
+
+// returns not 0 if nothing has changed
+int cursor_move(window *w, int dy, int dx, char no_view) {
+    if(!w) return -1;
+
+    offset *cur = &w->cur;
+    offset *view = &w->view;
+    int height = w->pos.y2 - w->pos.y1 + 1;
+
+    line *l = cur->l;
+
+    if(!l) return -1;
+
+    int view_dy = 0;
+    int view_dx = 0;
+
+    if(dy) { // if we move vertically
+        line *initial_line = l;
+        char is_up = (dy < 0); // are we going up or down?
+        char is_tip = cur->pos == l->len; // if we are at the tip of a line
+
+        line *next = (is_up) ? l->prev : l->next;
+        int new_index = cur->index;
+
+        while(next) { // get to the line or to the nearest one (before NULL)
+            l = next;
+            if(is_up) {
+                next = l->prev;
+                new_index--;
+            } else {
+                next = l->next;
+                new_index++;
+            }
+        }
+
+        if(l != initial_line) { // if we really have moved
+            cur->l = l;
+            cur->index = new_index;
+
+            if(is_tip) { // then move cur to the tip of the new line
+                cur->pos = l->len;
+            }
+            
+            if(is_up) { // we move view accordingly
+                int top_line = view->index;
+
+                if(top_line > new_index) {  // if we can't see the cursor
+                    view_dy = new_index - top_line;  // how much we should move to see it
+                }
+            } else {
+                int bottom_line = (view->index + height);
+
+                if(bottom_line < new_index) {
+                    view_dy = new_index - bottom_line;
+                }
+            }
+        }
+    }
+
+    if(dx) { // if we move horizontally
+        char is_left = (dx < 0); // are we moving to the left?
+        int new_pos = cur->pos + dx;
+
+        if(is_left) {
+            if(new_pos < 0) {
+                new_pos = 0; // 0 is the leftmost limit
+            }
+        } else {
+            if(new_pos > l->len) {
+                new_pos = l->len; // line of the line is the rightmost limit
+            }
+        }
+
+        if(new_pos != cur->pos) { // if we really have moved
+            if(is_left) {
+                if(view->pos < new_pos) { // if we can't see it
+                    dx = new_pos - view->pos;
+                }
+            } else {
+                int right_border = view->pos + w->pos.x2 - w->pos.x1;
+                if(right_border > new_pos) {
+                    dx = right_border - new_pos;
+                }
+            }
+        }
+    }
+
+    if(!no_view && (view_dy || view_dx)) { // if we need to move the view
+        view_move(w, view_dy, view_dx, 1); // move the view to see the cursor
+    }
+
+    return !(dy || dx);
+}
+
 #endif

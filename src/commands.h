@@ -150,11 +150,10 @@ void cursor_right() {
         off->pos += n;
         order_draw_window(S.current_window);
     }
-
 }
 
 void cursor_leap_word() {
-
+    
 }
 
 void cursor_leap_word_back() {

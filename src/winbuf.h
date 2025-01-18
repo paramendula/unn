@@ -88,8 +88,12 @@ typedef struct rect {
 } rect;
 
 typedef struct offset {
-    int index;
-    int pos;
+    union {
+        int index, y;
+    };
+    union {
+        int pos, x;
+    };
     line *l;
 } offset;
 
