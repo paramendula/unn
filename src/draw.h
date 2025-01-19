@@ -81,8 +81,18 @@ inline static void draw_window_line(struct ncplane *p, window *w, offset view,
         }
     }
 
-    if(not_fully)
+    if(not_fully) {
         wcstr[width] = temp;
+
+        nccell c = { 0 };
+
+        nccell_set_bg_rgb8(&c, 0, 0, 0);
+        nccell_set_fg_rgb8(&c, 255, 255, 255);
+
+        c.gcluster = L'>';
+
+        ncplane_putc_yx(S.p, y1, x1 + width - 1, &c);
+    }
 }
 
 int draw_window(struct ncplane *p, window *w) {
@@ -93,6 +103,7 @@ int draw_window(struct ncplane *p, window *w) {
     offset view = w->view;
 
     int width = pos.x2 - pos.x1 + 1;
+    width -= 1; // for side markers
     int height = pos.y2 - pos.y1 + 1;
 
     logg("Drawing window: %d %d %d %d - %d %d\n",

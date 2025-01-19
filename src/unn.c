@@ -40,13 +40,11 @@
     !!  LISP version of UNN
 
     TODO(appropximated):
-        ! visual glitches on resize
-            status somtimes not properly drawn + duplicates
 
         add matrix of cells to grid for window switching commands
         make grid more flexible, so that static windows like prompt can be made easily
         buffer list and prompt buffer list indexes are separate
-        cursor and view moving needs to be interconnected
+        ~ cursor and view moving needs to be interconnected
         text rendering zone in windows shouldn't take all available space
             because we need additions such as line numbering, markers, etc.
         window switching needs to be simplified, general functions implemented

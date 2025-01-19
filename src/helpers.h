@@ -416,9 +416,9 @@ int adjust_view_for_cursor(window *w) {
     }
 
     if(left_border > cpos) { // change the whole view window is cur is in the different section
-        int attempt = cpos - width + 1;
+        int attempt = cpos - width + 1 - 1; // -1 for side markers
         view_x = (attempt > 0) ? attempt : 0;
-    } else if(right_border <= cpos) {
+    } else if(right_border <= cpos + 1) { // + 1 for side markers
         view_x = cpos;
     }
 
