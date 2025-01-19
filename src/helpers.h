@@ -327,64 +327,29 @@ void prompt_cb_file_open(buffer *b) {
     prompt_cb_default(b);
 }
 
-int cursor_move(window *w, int dy, int dx, char no_cur);
-
+// returns not 0 if nothing has changed
 // similar to cursor_move, for comments check it out
-int view_move(window *w, int dy, int dx, char no_cur) {
+int view_move(window *w, int dy, int dx) {
     if(!w) return -1;
 
-    offset *cur = &w->cur;
     offset *view = &w->view;
 
-    int height = w->pos.y2 - w->pos.y1 + 1;
+    char changed = 0;
 
-    line *l = cur->l;
+    line *l = view->l;
 
     if(!l) return -1;
-
-    int cur_dy = 0;
-    int cur_dx = 0;
 
     if(dy) {
-
-    }
-
-    if(dx) {
-
-    }
-
-    if(!no_cur && (cur_dy || cur_dx)) {
-        cursor_move(w, cur_dy, cur_dx, 1);
-    }
-
-    return 0;
-}
-
-// returns not 0 if nothing has changed
-int cursor_move(window *w, int dy, int dx, char no_view) {
-    if(!w) return -1;
-
-    offset *cur = &w->cur;
-    offset *view = &w->view;
-    int height = w->pos.y2 - w->pos.y1 + 1;
-
-    line *l = cur->l;
-
-    if(!l) return -1;
-
-    int view_dy = 0;
-    int view_dx = 0;
-
-    if(dy) { // if we move vertically
         line *initial_line = l;
-        char is_up = (dy < 0); // are we going up or down?
-        char is_tip = cur->pos == l->len; // if we are at the tip of a line
+        char is_up = (dy < 0);
 
         line *next = (is_up) ? l->prev : l->next;
-        int new_index = cur->index;
+        int new_index = view->index;
 
-        while(next) { // get to the line or to the nearest one (before NULL)
+        while(next && dy) {
             l = next;
+
             if(is_up) {
                 next = l->prev;
                 new_index--;
@@ -392,28 +357,125 @@ int cursor_move(window *w, int dy, int dx, char no_view) {
                 next = l->next;
                 new_index++;
             }
+
+            dy = dy + ((is_up) ? 1 : -1);
+        }
+
+        if(l != initial_line) {
+            changed = 1;
+
+            view->l = l;
+            view->index = new_index;
+        }
+    }
+
+    if(dx) {
+        char is_left = (dx < 0);
+        int new_pos = view->pos + dx;
+
+        if(is_left) {
+            if(new_pos < 0) {
+                new_pos = 0;
+            }
+        } else {
+            if(new_pos > l->len) {
+                new_pos = l->len;
+            }
+        }
+
+        if(new_pos != view->pos) {
+            changed = 1;
+
+            view->pos = new_pos;
+        }
+    }
+
+    return !changed;
+}
+
+int adjust_view_for_cursor(window *w) {
+    int cidx = w->cur.index;
+    int cpos = w->cur.pos;
+
+    int height = w->pos.y2 - w->pos.y1 + 1;
+    int width = w->pos.x2 - w->pos.x1;
+
+    int top_line = w->view.index;
+    int bottom_line = top_line + height - 1;
+    int left_border = w->view.pos;
+    int right_border = left_border + width;
+
+    int view_x = -1;
+    int view_dy = 0;
+
+    if(top_line > cidx) {  // move to the line if it is above or below
+        w->view.l = w->cur.l;
+        w->view.index = cidx;
+    } else if(bottom_line < cidx) {
+        view_dy = cidx - bottom_line;
+    }
+
+    if(left_border > cpos) { // change the whole view window is cur is in the different section
+        int attempt = cpos - width + 1;
+        view_x = (attempt > 0) ? attempt : 0;
+    } else if(right_border <= cpos) {
+        view_x = cpos;
+    }
+
+    if(view_x > -1) {
+        w->view.x = view_x;
+    }
+
+    if(view_dy) {
+        view_move(w, view_dy, 0);
+    }
+
+    return !(view_x || view_dy);
+}
+
+// returns not 0 if nothing has changed
+int cursor_move(window *w, int dy, int dx, char no_view) {
+    if(!w) return -1;
+
+    offset *cur = &w->cur;
+
+    char changed = 0;
+
+    line *l = cur->l;
+
+    if(!l) return -1;
+
+    if(dy) { // if we move vertically
+        line *initial_line = l;
+        char is_up = (dy < 0); // are we going up or down?
+
+        line *next = (is_up) ? l->prev : l->next;
+        int new_index = cur->index;
+
+        while(next && dy) { // get to the line or to the nearest one (before NULL)
+            l = next;
+
+            if(is_up) {
+                next = l->prev;
+                new_index--;
+            } else {
+                next = l->next;
+                new_index++;
+            }
+
+            dy = dy + ((is_up) ? 1 : -1);
         }
 
         if(l != initial_line) { // if we really have moved
+            changed = 1;
+
             cur->l = l;
             cur->index = new_index;
 
-            if(is_tip) { // then move cur to the tip of the new line
-                cur->pos = l->len;
-            }
-            
-            if(is_up) { // we move view accordingly
-                int top_line = view->index;
-
-                if(top_line > new_index) {  // if we can't see the cursor
-                    view_dy = new_index - top_line;  // how much we should move to see it
-                }
+            if(w->last_pos <= l->len) {
+                cur->pos = w->last_pos;
             } else {
-                int bottom_line = (view->index + height);
-
-                if(bottom_line < new_index) {
-                    view_dy = new_index - bottom_line;
-                }
+                cur->pos = l->len;
             }
         }
     }
@@ -433,24 +495,14 @@ int cursor_move(window *w, int dy, int dx, char no_view) {
         }
 
         if(new_pos != cur->pos) { // if we really have moved
-            if(is_left) {
-                if(view->pos < new_pos) { // if we can't see it
-                    dx = new_pos - view->pos;
-                }
-            } else {
-                int right_border = view->pos + w->pos.x2 - w->pos.x1;
-                if(right_border > new_pos) {
-                    dx = right_border - new_pos;
-                }
-            }
+            changed = 1;
+
+            cur->pos = new_pos;
+            w->last_pos = new_pos;
         }
     }
 
-    if(!no_view && (view_dy || view_dx)) { // if we need to move the view
-        view_move(w, view_dy, view_dx, 1); // move the view to see the cursor
-    }
-
-    return !(dy || dx);
+    return !(adjust_view_for_cursor(w) || changed);
 }
 
 #endif

@@ -52,102 +52,65 @@ void mode_toggle() {
 }
 
 void cursor_up() {
-    offset *off = (state_flag_is_on(FLAG_VIEW)) ?
-    &S.current_window->view : &S.current_window->cur;
-
+    char is_view = state_flag_is_on(FLAG_VIEW);
     int times = (state_flag_is_on(FLAG_FAST)) ? 5 : 1;
 
-    line *l = off->l;
-    line *n = l;
-
-    for(int i = 0; i < times; i++) {
-        if(!n->prev) break;
-        off->index--;
-        n = n->prev;
+    int result;
+    if(is_view) {
+        result = view_move(S.current_window, -times, 0);
+    } else {
+        result = cursor_move(S.current_window, -times, 0, 0);
     }
 
-    if(n != l) {
-        off->l = n;
-
-        if(n->len < l->len) {
-            if(off->pos >= n->len) {
-                off->pos = (n->len) ? (n->len - 1) : 0;
-            }
-        }
-
+    if(!result) { // if something has changed
         order_draw_window(S.current_window);
     }
 }
 
 void cursor_down() {
-    offset *off = (state_flag_is_on(FLAG_VIEW)) ?
-    &S.current_window->view : &S.current_window->cur;
-
+    char is_view = state_flag_is_on(FLAG_VIEW);
     int times = (state_flag_is_on(FLAG_FAST)) ? 5 : 1;
 
-    line *l = off->l;
-    line *n = l;
-
-    for(int i = 0; i < times; i++) {
-        if(!n->next) break;
-        off->index++;
-        n = n->next;
+    int result;
+    if(is_view) {
+        result = view_move(S.current_window, times, 0);
+    } else {
+        result = cursor_move(S.current_window, times, 0, 0);
     }
 
-    if(n != l) {
-        off->index -= times;
-        off->l = n;
-
-        if(n->len < l->len) {
-            if(off->pos >= n->len) {
-                off->pos = (n->len) ? (n->len - 1) : 0;
-            }
-        }
-
+    if(!result) { // if something has changed
         order_draw_window(S.current_window);
     }
 }
 
 void cursor_left() {
-    offset *off = (state_flag_is_on(FLAG_VIEW)) ?
-    &S.current_window->view : &S.current_window->cur;
-
+    char is_view = state_flag_is_on(FLAG_VIEW);
     int times = (state_flag_is_on(FLAG_FAST)) ? 5 : 1;
 
-    int n = off->pos - times;
+    int result;
+    if(is_view) {
+        result = view_move(S.current_window, 0, -times);
+    } else {
+        result = cursor_move(S.current_window, 0, -times, 0);
+    }
 
-    if(n >= 0) {
-        off->pos = n;
+    if(!result) { // if something has changed
         order_draw_window(S.current_window);
     }
 }
 
 void cursor_right() {
     char is_view = state_flag_is_on(FLAG_VIEW);
-
-    offset *off = (is_view) ?
-    &S.current_window->view : &S.current_window->cur;
-
     int times = (state_flag_is_on(FLAG_FAST)) ? 5 : 1;
 
-    int width = (S.current_window->pos.x2 - S.current_window->pos.x1)
-     + S.current_window->view.pos;
-
-    int cpos = off->pos;
-    int n = times;
-    int npos = cpos + n;
-
-    if(npos > off->l->len) {
-        n -= npos - off->l->len;
+    int result;
+    if(is_view) {
+        result = view_move(S.current_window, 0, times);
+    } else {
+        result = cursor_move(S.current_window, 0, times, 0);
     }
 
-    if(!is_view && npos >= width) {
-        n -= npos - width + 1;
-    }
-
-    if(n > 0) {
-        off->index += n;
-        off->pos += n;
+    if(!result) { // if something has changed
         order_draw_window(S.current_window);
     }
 }

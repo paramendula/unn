@@ -257,8 +257,8 @@ inline static list *grid_as_list(grid *g) {
 }
 
 int grid_fit(grid *g, rect pos) {
-    int pos_height = pos.y2 - pos.y1;
-    int pos_width = pos.x2 - pos.x1;
+    int pos_height = pos.y2 - pos.y1 + 1;
+    int pos_width = pos.x2 - pos.x1 + 1;
 
     int avg_height = pos_height / g->height;
     int avg_width = pos_width / g->width;
@@ -274,8 +274,8 @@ int grid_fit(grid *g, rect pos) {
         win->pos = (rect) {
             .y1 = loc.y1 * avg_height,
             .x1 = loc.x1 * avg_width,
-            .y2 = loc.y2 * avg_height + ((loc.y2 == y_last) ? h_rem : 0),
-            .x2 = loc.x2 * avg_width + ((loc.x2 == x_last) ? w_rem : 0),
+            .y2 = loc.y2 * avg_height + ((loc.y2 == y_last) ? h_rem : 0) - 1,
+            .x2 = loc.x2 * avg_width + ((loc.x2 == x_last) ? w_rem : 0) - 1,
         };
 
     }

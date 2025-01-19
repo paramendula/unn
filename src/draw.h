@@ -92,8 +92,8 @@ int draw_window(struct ncplane *p, window *w) {
     offset cur = w->cur;
     offset view = w->view;
 
-    int width = pos.x2 - pos.x1;
-    int height = pos.y2 - pos.y1;
+    int width = pos.x2 - pos.x1 + 1;
+    int height = pos.y2 - pos.y1 + 1;
 
     logg("Drawing window: %d %d %d %d - %d %d\n",
     pos.y1, pos.x1, pos.y2, pos.x2, height, width);
@@ -105,7 +105,7 @@ int draw_window(struct ncplane *p, window *w) {
     // different coloring if prompt window
     if(!is_prompt) {
         ncplane_cursor_move_yx(p, pos.y1, pos.x1);
-        ncplane_erase_region(p, pos.y1, pos.x1, (height) ? height : 1, (width) ? width : 1);
+        ncplane_erase_region(p, pos.y1, pos.x1, height, width);
     } else {
         ncplane_set_fg_rgb8(S.p, 25, 25, 0);
         ncplane_set_bg_rgb8(S.p, 230, 230, 255);

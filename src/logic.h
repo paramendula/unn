@@ -227,21 +227,24 @@ void grid_fit_full() {
     unsigned int max_y, max_x;
     ncplane_dim_yx(S.p, &max_y, &max_x);
 
+    max_y -= 1 + 1; // 1 gen, 1 for status
+    max_x -= 1;
+
     if(S.prompt_window) {
         max_y -= 1;
         S.prompt_window->pos = (rect) {
-            .y1 = max_y - 1,
+            .y1 = max_y,
             .x1 = 0,
-            .y2 = max_y - 1,
-            .x2 = max_x - 1,
+            .y2 = max_y,
+            .x2 = max_x,
         };
     }
 
     grid_fit(S.grid, (rect) {
         .y1 = 0,
         .x1 = 0,
-        .y2 = max_y - 2, // -1 for status
-        .x2 = max_x - 1,
+        .y2 = max_y,
+        .x2 = max_x,
     });
 }
 
