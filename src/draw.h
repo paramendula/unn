@@ -171,6 +171,8 @@ int draw_status(struct ncplane *p) {
     int y = max_y - 1;
     int x = 0;
 
+    logg("Drawing status at %d %d\n", y, x);
+
     ncplane_set_fg_rgb8(S.p, 255, 255, 255);
     ncplane_set_bg_rgb8(S.p, 0, 0, 0);
 

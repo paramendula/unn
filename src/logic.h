@@ -225,7 +225,13 @@ void status_set_message(wchar_t *fmt, ...) {
 // also includes prompt_window
 void grid_fit_full() {
     unsigned int max_y, max_x;
-    ncplane_dim_yx(S.p, &max_y, &max_x);
+    // ncplane_dim_yx(S.p, &max_y, &max_x);
+
+    // this works for some reason, maybe notcurses
+    // resizes it's planes after this call?
+    notcurses_refresh(S.nc, &max_y, &max_x);
+
+    logg("New height, width: %d %d\n", max_y, max_x);
 
     max_y -= 1 + 1; // 1 gen, 1 for status
     max_x -= 1;

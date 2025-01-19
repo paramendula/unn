@@ -112,6 +112,9 @@
 
 pthread_mutex_t log_mutex;
 
+#define DEBUG 1
+
+#ifdef DEBUG
 void logg(char *fmt, ...) {
     static FILE *errfp;
     va_list ap; va_start(ap, fmt);
@@ -128,6 +131,11 @@ void logg(char *fmt, ...) {
     
     pthread_mutex_unlock(&log_mutex);
 }
+#elif
+void logg(char *fmt, ...) {
+    return;
+}
+#endif
 
 #include "err.h"
 #include "state.h"
