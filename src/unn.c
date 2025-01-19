@@ -171,52 +171,9 @@ void unn_init() {
     }
 
     // TODO: set prompt binds
+    // currently unneeded, one binds(enter, newline) is hardcoded
 
     logg("Binds set\n");
-
-    // test windows
-    line *first, *last;
-    int lines_count;
-
-    FILE *fp = fopen("other/ascii_table.c", "rb");
-
-    first = read_file_to_lines(fp, &last, &lines_count);
-    fclose(fp);
-
-    buffer *b1 = (buffer *)buffer_from_lines(L"ascii_table.scm", first, last, lines_count);
-
-    fp = fopen("other/little-schemes.scm", "rb");
-
-    first = read_file_to_lines(fp, &last, &lines_count);
-    fclose(fp);
-
-    buffer *b2 = (buffer *)buffer_from_lines(L"little-schemes.scm", first, last, lines_count);
-
-    blist_insert(S.blist, b1);
-    blist_insert(S.blist, b2);
-
-    window *w1 = window_with_buffer(b1);
-    w1->loc = (rect) {
-        .y1 = 0,
-        .x1 = 0,
-        .y2 = 1,
-        .x2 = 1,
-    };
-
-    window *w2 = window_with_buffer(b2);
-    w2->loc = (rect) {
-        .y1 = 0,
-        .x1 = 1,
-        .y2 = 1,
-        .x2 = 2,
-    };
-
-    grid_insert(S.grid, w1);
-    grid_insert(S.grid, w2);
-    S.current_window = w1;
-    S.other_window = w2;
-
-    logg("Initial windows/buffers created\n");
 
     // fit and draw first time
     on_resize();

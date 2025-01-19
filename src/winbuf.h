@@ -257,6 +257,9 @@ inline static list *grid_as_list(grid *g) {
 }
 
 int grid_fit(grid *g, rect pos) {
+    if(!g->height) return -1;
+    if(!g->width) return -1;
+
     int pos_height = pos.y2 - pos.y1 + 1;
     int pos_width = pos.x2 - pos.x1 + 1;
 

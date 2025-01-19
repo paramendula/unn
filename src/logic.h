@@ -157,6 +157,7 @@ void *draw_loop(void*) {
         pthread_mutex_unlock(&S.draw_flags_block);
 
         if(d_a) {
+            ncplane_erase(S.p);
             draw_grid(S.p, S.grid, 0);
             if(S.prompt_window) draw_window(S.p, S.prompt_window);
             draw_status(S.p);
