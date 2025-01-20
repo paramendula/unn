@@ -238,13 +238,13 @@ void grid_fit_full() {
     max_x -= 1;
 
     if(S.prompt_window) {
-        max_y -= 1;
         S.prompt_window->pos = (rect) {
             .y1 = max_y,
             .x1 = 0,
             .y2 = max_y,
             .x2 = max_x,
         };
+        max_y -= 1;
     }
 
     grid_fit(S.grid, (rect) {

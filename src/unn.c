@@ -110,7 +110,7 @@
 
 pthread_mutex_t log_mutex;
 
-#define DEBUG 1
+//#define DEBUG 1
 
 #ifdef DEBUG
 void logg(char *fmt, ...) {
@@ -129,7 +129,7 @@ void logg(char *fmt, ...) {
     
     pthread_mutex_unlock(&log_mutex);
 }
-#elif
+#else
 void logg(char *fmt, ...) {
     return;
 }
@@ -175,9 +175,8 @@ void unn_init() {
 
     logg("Binds set\n");
 
-    // fit and draw first time
-    on_resize();
-    logg("First draw request sent\n");
+    // new window and draw first time
+    new_window_command();
 }
 
 void unn_run() {

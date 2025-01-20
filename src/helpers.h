@@ -260,6 +260,13 @@ void prompt_cb_default(buffer *b) {
 
 // we assume that prompt buffer's line count is 1
 void prompt_cb_file_open(buffer *b) {
+    window *w = (window *)b->userdata;
+    
+    if(!w) {
+        prompt_cb_default(b);
+        return;
+    }
+
     wchar_t *path = b->first->str;
     free(b->first);
     b->first = NULL;
@@ -311,7 +318,6 @@ void prompt_cb_file_open(buffer *b) {
 
     blist_insert(S.blist, nb);
 
-    window *w = (window *)b->userdata;
     w->buff = nb;
     w->cur = (offset) {
         .index = 0,
@@ -415,10 +421,12 @@ int adjust_view_for_cursor(window *w) {
         view_dy = cidx - bottom_line;
     }
 
+    int is_markers = !!flag_is_on(w->flags, WINDOW_LONG_MARKS);
+
     if(left_border > cpos) { // change the whole view window is cur is in the different section
-        int attempt = cpos - width + 1 - 1; // -1 for side markers
+        int attempt = cpos - width + 1 - is_markers; // -1 for side markers
         view_x = (attempt > 0) ? attempt : 0;
-    } else if(right_border <= cpos + 1) { // + 1 for side markers
+    } else if(right_border <= cpos + is_markers) { // + 1 for side markers
         view_x = cpos;
     }
 

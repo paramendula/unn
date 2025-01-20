@@ -167,6 +167,7 @@ void buffer_newline_at_cursor() {
 
     cur->pos = 0;
     cur->l = l;
+    cur->index++;
 
     pthread_mutex_unlock(&S.current_window->buff->block);
 
@@ -305,8 +306,39 @@ void current_window_switch_other() {
     order_draw_status();
 }
 
+void current_window_toggle_lines() {
+    if(!S.current_window) return;
+    flag_toggle(S.current_window->flags, WINDOW_LINES);
+    order_draw_window(S.current_window);
+}
+
+void current_window_toggle_marks() {
+    if(!S.current_window) return;
+    flag_toggle(S.current_window->flags, WINDOW_LONG_MARKS);
+    order_draw_window(S.current_window);
+}
+
+// split current window in half horizontally
 void new_window_command() {
-    // TODO
+    logg("New window requested\n");
+    window *w = window_empty(L"*empty*");
+    blist_insert(S.blist, w->buff);
+    w->buff->current_window = w;
+
+    rect loc = { 0 };
+
+    if(!S.current_window) {
+        loc.y2 = 1;
+        loc.x2 = 1;
+    } else {
+        // TODO
+    }
+
+    grid_insert_loc(S.grid, w, loc);
+
+    S.current_window = w;
+
+    on_resize();
 }
 
 void current_window_switch_prev() {

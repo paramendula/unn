@@ -25,10 +25,11 @@
 // compile-time edit only, for runtime set and del use commands
 
 ubind WINDOW_BINDINGS[] = {
+    { 0, "c", { clear_input_buffer_and_move } }, // exit this continuation
     { 0, "o", { current_window_switch_other } }, // switch focus from current window to the other one
     { 0, "n", { new_window_command } }, // create new empty window, focus on it
-    { 0, "b", { current_window_switch_prev } }, // switch focus from current window to the previous one
-    { 0, "n", { current_window_switch_next } }, // switch focus from current window to the next one
+    { 0, "g", { current_window_switch_prev } }, // switch focus from current window to the previous one
+    { 0, "h", { current_window_switch_next } }, // switch focus from current window to the next one
     { 0, "w", { current_window_switch_up } }, // switch focus from current window to the nearest above one
     { 0, "s", { current_window_switch_left } }, // switch focus from current window to the nearest left one
     { 0, "k", { current_window_switch_right } }, // switch focus from current window to the nearest right one
@@ -55,10 +56,18 @@ ubind BUFFER_BINDINGS[] = {
     { 0, NULL, { NULL } },
 };
 
+ubind TOGGLE_BINDINGS[] = {
+    { 0, "c", { clear_input_buffer_and_move } }, // exit this continuation
+    { 0, "l", { current_window_toggle_lines } }, // toggle line numbering
+    { 0, "m", { current_window_toggle_marks } }, // toggle long line marks
+    { 0, NULL, { NULL } },
+};
+
 ubind CONTROL_BINDINGS[] = { // 'c' in MOVE or Ctrl+
     { 1, "w", { .cont = WINDOW_BINDINGS } },
     { 1, "f", { .cont = FILE_BINDINGS } },
     { 1, "b", { .cont = BUFFER_BINDINGS } },
+    { 1, "t", { .cont = TOGGLE_BINDINGS } },
     { 0, "c", { clear_input_buffer_and_move } }, // exit this continuation
     { 0, "^c", { clear_input_buffer_and_move } },
     // toggle wrap lines

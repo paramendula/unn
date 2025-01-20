@@ -32,6 +32,7 @@
 #define BUFFER_PROMPT 1
 
 #define WINDOW_LINES 1
+#define WINDOW_LONG_MARKS 2
 
 typedef void(*callback)(void*);
 
