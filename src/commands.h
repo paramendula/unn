@@ -169,6 +169,8 @@ void buffer_newline_at_cursor() {
     cur->l = l;
     cur->index++;
 
+    adjust_view_for_cursor(S.current_window);
+
     pthread_mutex_unlock(&S.current_window->buff->block);
 
     order_draw_window(S.current_window);
@@ -202,6 +204,8 @@ void buffer_erase_at_cursor() {
         cursor_left();
     }
 
+    adjust_view_for_cursor(S.current_window);
+
     pthread_mutex_unlock(&S.current_window->buff->block);
 
     order_draw_window(S.current_window);
@@ -218,6 +222,8 @@ void current_buffer_switch_new() {
         .pos = 0,
     };
     S.current_window->view = S.current_window->cur;
+
+    nb->current_window = S.current_window;
     
     order_draw_window(S.current_window);
     order_draw_status();                // not optimal, locking mutex twice in a row
@@ -243,8 +249,6 @@ void current_buffer_switch_from_file() {
     window *pw;
     if(!S.prompt_window) {
         pw = window_with_buffer(pb);
-
-        pb->current_window = pw;
 
         S.prompt_window = pw;
         S.tmp_window = S.current_window;

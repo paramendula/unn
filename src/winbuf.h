@@ -33,6 +33,7 @@
 
 #define WINDOW_LINES 1
 #define WINDOW_LONG_MARKS 2
+#define WINDOW_DEFAULT (WINDOW_LINES | WINDOW_LONG_MARKS)
 
 typedef void(*callback)(void*);
 
@@ -245,6 +246,9 @@ window *window_with_buffer(buffer *buff) {
         .l = buff->first,
     };
     win->view = win->cur;
+    win->flags = WINDOW_DEFAULT;
+
+    buff->current_window = win;
 
     return win;
 }
