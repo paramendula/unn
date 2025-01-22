@@ -59,9 +59,12 @@
         parameterizing buffers and state is used by flags, which is inflexible and crude
         (half of those are solvable by using Lisp... But I'm a hard worker and love C! jk)
 
+        window drawing functions fully redraws a window, lazy methods needed for optimization
+            (draw only the modified line, half of a window etc.)
+
         prompting(special window located just above status, emacs and vim-like)
 
-        imeplement the left binds, add more binds for MVP
+        implement the left binds, add more binds for MVP
 
         text stylizing for scripts
             colored text, blinking,
