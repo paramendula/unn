@@ -276,7 +276,10 @@ void new_window_command() {
         loc.y2 = 1;
         loc.x2 = 1;
     } else {
-        // TODO
+        // for now just constant horizontal expansion
+        loc.x1 = S.grid->width;
+        loc.x2 = S.grid->width + 1;
+        loc.y2 = 1;
     }
 
     grid_insert_loc(S.grid, w, loc);

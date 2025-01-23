@@ -650,7 +650,7 @@ void make_prompt(wchar_t *name, wchar_t *msg, callback prompt_cb) {
     }
 
     buffer *pb = buffer_empty(name);
-    pb->path = msg;
+    pb->path = wstr_copy(msg);
     // set prompt binds
     pb->flags = BUFFER_PROMPT;
 

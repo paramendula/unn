@@ -64,6 +64,8 @@
 
         prompting(special window located just above status, emacs and vim-like)
 
+        add marks for left border if view if chars are goung out of view
+
         implement the left binds, add more binds for MVP
 
         text stylizing for scripts
