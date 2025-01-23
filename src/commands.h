@@ -163,7 +163,7 @@ void buffer_newline_at_cursor() {
         cur->l->str[cur->pos] = 0;
     }
 
-    list_insert_after((list *)S.current_window->buff, (node *)cur->l, (node *)l);
+    list_insert_after(BUFFER_LIST(S.current_window->buff), (node *)cur->l, (node *)l);
 
     cur->pos = 0;
     cur->l = l;
@@ -191,7 +191,7 @@ void buffer_erase_at_cursor() {
 
         line *l = cur->l;
         
-        list_remove((list *)S.current_window->buff, (node *)l);
+        list_remove(BUFFER_LIST(S.current_window->buff), (node *)l);
 
         cur->pos = prev->len;
         line_append_str(prev, l->str);

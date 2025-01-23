@@ -19,6 +19,12 @@
 #ifndef __UNN_COLORS_H_
 #define __UNN_COLORS_H_
 
+#include <notcurses/notcurses.h>
+
+#include <wchar.h>
+
+#include "list.h"
+
 // header for text styling, TODO
 
 // overall unn theming. 
@@ -26,10 +32,5 @@
 // params
 // bg color RGB
 // fg color RGB
-
-// text theming
-// text decoration for mods and commands
-// buffer will always have itself pre-processed before rendering
-// default lines will be wrapped by dlines - decorative lines
 
 #endif

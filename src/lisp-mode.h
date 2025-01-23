@@ -20,6 +20,7 @@
 #define __UNN_LISP_MODE_H_
 
 #include "colors.h"
+#include "winbuf.h"
 
 // analyze a file - a sequence of symbolic expressions
 // database of all imported procedures, special forms and macros should exist at any moment
@@ -45,6 +46,14 @@
 
 // at first, let's make it so we have to re-parse the whole file after a single change
 
-// colors.h implementation needed first
+typedef struct buffer_lisp {
+    buffer buff;
+    
+} buffer_lisp;
+
+// override all moving/editing keybinds
+// make buff's on_destroy cb call b_lisps's on_destroy
+
+// first, primitive lisp parser needed
 
 #endif

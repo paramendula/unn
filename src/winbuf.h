@@ -28,6 +28,7 @@
 #include "flags.h"
 #include "list.h"
 #include "bind.h"
+#include "colors.h"
 
 #define BUFFER_PROMPT 1
 
@@ -65,6 +66,8 @@ typedef struct buffer {
 
     void *userdata;
 } buffer;
+
+#define BUFFER_LIST(buff) ((list *)(&((buff)->lines_count)))
 
 typedef struct int_node {
     struct int_node *prev, *next;
@@ -138,11 +141,6 @@ void line_free(line *l) {
     free(l->str);
     free(l);
 }
-
-inline static list *buffer_as_list(buffer *b) {
-    return (list *)&(b->lines_count);
-}
-
 
 buffer *buffer_from_lines(const wchar_t *name, line *first, line *last, int line_count) {
     buffer *b = (buffer *)unn_calloc(1, sizeof(*b));
@@ -255,10 +253,6 @@ window *window_with_buffer(buffer *buff) {
 
 inline static window *window_empty(wchar_t *buff_name) {
     return window_with_buffer(buffer_empty(buff_name));
-}
-
-inline static list *grid_as_list(grid *g) {
-    return (list *)&(g->windows_count);
 }
 
 int grid_fit(grid *g, rect pos) {
