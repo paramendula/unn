@@ -33,24 +33,6 @@ void clear_input_buffer_and_move() {
     order_draw_status();
 }
 
-void mode_move() {
-    state_flag_off(FLAG_EDIT);
-
-    order_draw_status();
-}
-
-void mode_edit() {
-    state_flag_on(FLAG_EDIT);
-
-    order_draw_status();
-}
-
-void mode_toggle() {
-    state_flag_toggle(FLAG_EDIT);
-
-    order_draw_status();
-}
-
 void cursor_up() {
     char is_view = state_flag_is_on(FLAG_VIEW);
     int times = (state_flag_is_on(FLAG_FAST)) ? 5 : 1;
@@ -230,55 +212,14 @@ void current_buffer_switch_new() {
 }
 
 void current_buffer_switch_from_file() {
-    buffer *pb = buffer_empty(L"*file open prompt*");
-    pb->path = L"Open file: ";
-    pb->move_binds = S.binds_prompt;
-    pb->edit_binds = S.binds_prompt;
-    pb->flags = BUFFER_PROMPT;
-
-    if(!S.current_window) {
-        // TODO
-    }
-
-    pb->userdata = S.current_window; // save current window as userdata
-
-    pb->on_destroy = (callback)prompt_cb_file_open; // passes an entered filename
-
-    blist_insert(S.blist_prompts, pb);
-
-    window *pw;
-    if(!S.prompt_window) {
-        pw = window_with_buffer(pb);
-
-        S.prompt_window = pw;
-        S.tmp_window = S.current_window;
-
-        S.current_window = pw;
-
-        on_resize();
-    } else {
-        pw = S.prompt_window;
-
-        pb->current_window = pw;
-
-        pw->buff = pb;
-        pw->cur = (offset) {
-            .index = 0,
-            .pos = 0,
-            .l = pb->first,
-        };
-        pw->view = pw->cur;
-
-        S.current_window = pw;
-
-        order_draw_window(S.tmp_window);
-        order_draw_window(S.prompt_window);
-        order_draw_status();
-    }
+    make_prompt(L"*file open prompt*", L"Open file: ", (callback)prompt_cb_file_open);
 }
 
 void current_buffer_save() {
-    // dangerous for now, backing up needed before the saving
+    if(!S.current_window) return;
+    if(!S.current_window->buff) return;
+
+    save_buffer(S.current_window->buff);
 }
 
 void current_buffer_destroy() {
@@ -295,7 +236,7 @@ void current_buffer_switch_other() {
 }
 
 void current_buffer_save_other() {
-    // TODO
+    make_prompt(L"*file save prompt*", L"Save to file: ", (callback)prompt_cb_file_save);
 }
 
 void current_window_switch_other() {

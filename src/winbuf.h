@@ -172,12 +172,20 @@ void buffer_free(buffer *b) {
     if(!b) return;
 
     node_free_nexts((node *)b->first, (free_func)line_free);
-    free(b->path);
-    free(b->name);
+
+    if(b->path)
+        free(b->path);
+
+    if(b->name)
+        free(b->name);
+    
     pthread_mutex_destroy(&b->block);
 
-    binds_free(b->edit_binds);
-    binds_free(b->move_binds);
+    if(b->edit_binds)
+        binds_free(b->edit_binds);
+    
+    if(b->move_binds)
+        binds_free(b->move_binds);
 
     free(b);
 }

@@ -28,6 +28,37 @@
 
 #include <sys/stat.h>
 
+
+void mode_move() {
+    state_flag_off(FLAG_EDIT);
+
+    order_draw_status();
+}
+
+void mode_edit() {
+    state_flag_on(FLAG_EDIT);
+
+    order_draw_status();
+}
+
+void mode_toggle() {
+    state_flag_toggle(FLAG_EDIT);
+
+    order_draw_status();
+}
+
+wchar_t *wstr_copy(wchar_t *str) {
+    if(!str) return NULL;
+    size_t len = wcslen(str);
+    
+    wchar_t *wcs = (wchar_t *)unn_malloc(sizeof(*wcs) * (len + 1));
+
+    wcscpy(wcs, str);
+    wcs[len] = 0;
+
+    return wcs;
+}
+
 inline static void _line_check(line *l, int amount) {
     if((l->len + amount) <= l->cap) return;
 
@@ -220,6 +251,34 @@ void buffer_destroy(buffer *b) {
     buffer_free(b);
 }
 
+void save_buffer(buffer *b) {
+    if(!b) return;
+    if(!b->path) return;
+
+    // unsafe TODO
+    char raw_path[512] = { 0 };
+    wcstombs(raw_path, b->path, sizeof(raw_path) - 1);
+
+    FILE *fp = fopen(raw_path, "wb");
+
+    if(!fp) return;
+
+    for(line *l = b->first; l != NULL; l = l->next) {
+        if(ferror(fp)) {
+            break;
+        }
+
+        wchar_t *str = (l->str) ? l->str : L""; // just in case
+        if(l->next != NULL) { // add \n to each line, except for the last one
+            fprintf(fp, "%ls\n", str);
+        } else {
+            fprintf(fp, "%ls", str);
+        }
+    }
+
+    fclose(fp);
+}
+
 void window_destroy(window *w) {
     if(S.prompt_window == w) {
         S.prompt_window = NULL;
@@ -244,18 +303,47 @@ void on_resize(); // this is why I will move UNN to Lisp!
 void prompt_cb_default(buffer *b) {
     window *w = (window *)b->current_window;
 
+    b->move_binds = NULL;
+    b->edit_binds = NULL;
+
     if(w) {
         buffer *nb = S.blist_prompts->last;
         if(!nb) {
             window_destroy(w);
+            mode_move();
             on_resize();
         } else {
             w->buff = nb;
             order_draw_window(w);
+            order_draw_status();
         }
 
         b->current_window = NULL; // stop buffer_destroy from modifying it
     }
+}
+
+int copy_file(FILE *from, FILE *to) {
+    if(!from) return -1;
+    if(!to) return -1;
+
+    while(1) {
+        if(ferror(from) || ferror(to)) {
+            return -1;
+        }
+
+        if(feof(from)) break;
+
+        char buf[256];
+        int readen = fread(buf, 1, sizeof(buf), from);
+
+        if(readen <= 0) { // can it be 0 at this point?? no feof
+            return -1;
+        }
+
+        fwrite(buf, 1, readen, to);
+    }
+
+    return 0;
 }
 
 // we assume that prompt buffer's line count is 1
@@ -286,6 +374,18 @@ void prompt_cb_file_open(buffer *b) {
         int line_count;
         
         FILE *fp = fopen(raw_path, "rb");
+        
+        // safety backup
+        char backup_path[562] = { 0 };
+        strcpy(backup_path, raw_path);
+        strncat(backup_path, "_$backup", sizeof(backup_path) - 1 - strlen(raw_path));
+
+        FILE *backup_fp = fopen(backup_path, "wb");
+        copy_file(fp, backup_fp);
+        fclose(backup_fp);
+
+        fseek(fp, 0L, SEEK_SET); // get back to the start
+        // !!
 
         if(!fp) {
             goto bad;
@@ -331,6 +431,36 @@ void prompt_cb_file_open(buffer *b) {
     order_draw_window(w);
     
     prompt_cb_default(b);
+}
+
+void prompt_cb_file_save(buffer *b) {
+    window *w = (window *)b->userdata;
+    
+    if(!w) {
+        prompt_cb_default(b);
+        return;
+    }
+
+    wchar_t *path = b->first->str;
+    free(b->first);
+    b->first = NULL;
+    b->last = NULL;
+
+    if(w->buff->path)
+        free(w->buff->path);
+
+    w->buff->path = path;
+
+    if(w->buff->name)
+        free(w->buff->name);
+
+    w->buff->name = wstr_copy(path);
+
+    save_buffer(w->buff);
+
+    prompt_cb_default(b);
+
+    order_draw_status();
 }
 
 // returns not 0 if nothing has changed
@@ -511,6 +641,58 @@ int cursor_move(window *w, int dy, int dx, char no_view) {
     }
 
     return !(adjust_view_for_cursor(w) || changed);
+}
+
+void make_prompt(wchar_t *name, wchar_t *msg, callback prompt_cb) {
+    if(!S.current_window) {
+        // TODO
+        return;
+    }
+
+    buffer *pb = buffer_empty(name);
+    pb->path = msg;
+    // set prompt binds
+    pb->flags = BUFFER_PROMPT;
+
+    pb->userdata = S.current_window; // save current window as userdata
+
+    pb->on_destroy = prompt_cb; // passes an entered filename
+
+    blist_insert(S.blist_prompts, pb);
+
+    window *pw;
+    if(!S.prompt_window) {
+        pw = window_with_buffer(pb);
+
+        S.prompt_window = pw;
+        S.tmp_window = S.current_window;
+
+        S.current_window = pw;
+
+        mode_edit();
+
+        on_resize();
+    } else {
+        pw = S.prompt_window;
+
+        pb->current_window = pw;
+
+        pw->buff = pb;
+        pw->cur = (offset) {
+            .index = 0,
+            .pos = 0,
+            .l = pb->first,
+        };
+        pw->view = pw->cur;
+
+        S.current_window = pw;
+
+        mode_edit();
+
+        order_draw_window(S.tmp_window);
+        order_draw_window(S.prompt_window);
+        order_draw_status();
+    }
 }
 
 #endif
