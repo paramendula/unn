@@ -1,5 +1,25 @@
+/*
+    UNN - text editor with high ambitions and far-fetched goals
+    Copyright (C) 2025  Sergei Igolnikov
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
 #ifndef __UNN_LISP_MODE_H_
 #define __UNN_LISP_MODE_H_
+
+#include "colors.h"
 
 // analyze a file - a sequence of symbolic expressions
 // database of all imported procedures, special forms and macros should exist at any moment
@@ -22,5 +42,9 @@
 //      virtual term sequences modification for sub-drawing (does this even work like that?)
 
 // all identation is fully automatic
+
+// at first, let's make it so we have to re-parse the whole file after a single change
+
+// colors.h implementation needed first
 
 #endif

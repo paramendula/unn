@@ -21,4 +21,15 @@
 
 // header for text styling, TODO
 
+// overall unn theming. 
+// theme overriding by separate windows/buffers
+// params
+// bg color RGB
+// fg color RGB
+
+// text theming
+// text decoration for mods and commands
+// buffer will always have itself pre-processed before rendering
+// default lines will be wrapped by dlines - decorative lines
+
 #endif

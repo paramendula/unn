@@ -147,6 +147,8 @@ int draw_window(struct ncplane *p, window *w) {
     offset cur = w->cur;
     offset view = w->view;
 
+    char is_prompt = flag_is_on(w->buff->flags, BUFFER_PROMPT);
+
     int dc = 0;
 
     int height = pos.y2 - pos.y1 + 1;
@@ -158,7 +160,7 @@ int draw_window(struct ncplane *p, window *w) {
         else width = n_width;
     }
 
-    if(flag_is_on(w->flags, WINDOW_LINES)) {
+    if(flag_is_on(w->flags, WINDOW_LINES) && !is_prompt) {
         dc = digits_count(view.index + height); // how many cells the most big num will take
         int n_width = width - dc - 1;
         if(n_width < 1) {
@@ -172,8 +174,6 @@ int draw_window(struct ncplane *p, window *w) {
 
     logg("Drawing window: %d %d %d %d - %d %d\n",
     pos.y1, pos.x1, pos.y2, pos.x2, height, width);
-
-    char is_prompt = flag_is_on(w->buff->flags, BUFFER_PROMPT);
 
     if(is_prompt) {
         ncplane_set_fg_rgb8(S.p, 0, 0, 25);
