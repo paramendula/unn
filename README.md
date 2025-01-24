@@ -1,6 +1,8 @@
 # UNN's Not Named
 
-**The project is currently not even in the MVP (Minimum Viable Product) stage, WIP.**
+**The project's currently not even in the MVP (Minimum Viable Product) stage, WIP.**
+
+![UNN's screenshot](screenshot.png)
 
 ## Description
 
