@@ -24,59 +24,69 @@
 /*
     HEADERS(hdr[deps]):
 
-        panic flags list lisp
-        err[panic] mem[panic] bind[mem]
-        winbuf[mem flags list]
-        state[err bind winbuf]
-        helpers[state winbuf]
-        logic[helpers state draw binds]
-        commands[err winbuf state logic]
-        binds[bind commands]
-
-        unn.c
+        bind.h - bindings primitive hash map implementation
+        binds.h - arrays of default bindings
+        colors.h - useful structures and definitions for coloring
+        commands.h - general commands represented by thunks (no-arg, no-ret) used by bindings
+        draw.h - window, status, grid drawing functions
+        err.h - simple error handling structure and functions, mainly forgotten about
+        flags.h - primitive bitwise manipulation definitions for flagging
+        helpers.h - misc. functions mainly used by commands.h
+        lisp-mode.h - an implementation of a special mode that hels coding in Lisp greatly
+        lisp.h - header for functions that some Lisp implementation should export for UNN to use
+        list.h - simple doubly-linked list implementation
+        logic.h - main logic implemented in functions, draw/input loop functions
+        mem.h - stupid panic-on-error memory alloc functions
+        panic.h - exposes a single function that simply panics (aborts)
+        state.h - general UNN state expressed by a single structure and it's helper functions
+        winbuf.h - general definitions of window, buffer, grid, etc. and it's helper functions
+        unn.c - state + logic glue and bootstrapper
 
     !!  Multithreading problems do currently exist,
-        but certainly are going to be fixed in the
-    !!  LISP version of UNN
+    !!  but certainly are going to be fixed after
+    !!  some time.
 
     TODO(appropximated):
 
-        add matrix of cells to grid for window switching commands
+        * add matrix of cells to grid for window switching commands
         make grid more flexible, so that static windows like prompt can be made easily
-        buffer list and prompt buffer list indexes are separate
-        ~ cursor and view moving needs to be interconnected
-        text rendering zone in windows shouldn't take all available space
-            because we need additions such as line numbering, markers, etc.
-        window switching needs to be simplified, general functions implemented
-        error propagation needs to be implemented with error windows
-        error and help windows depend on flexible grid
-            also it must be possible to create one big "helper window"
-            that logs important events, errors, etc.
-        bind system must be more complex to be able to handle non-hardcoded
-            non-printable characters, numerical non-hardcoded input without prompting
-        draw ordering functions are not flexible, more general ordering functions needed
-        status drawing alogrithm is crude and inflexible
-        parameterizing buffers and state is used by flags, which is inflexible and crude
-        (half of those are solvable by using Lisp... But I'm a hard worker and love C! jk)
+            * error propagation needs to be implemented with error windows
+            * error and help windows depend on flexible grid
+                also it must be possible to create one big "helper window"
+                that logs important events, errors, etc.
 
-        window drawing functions fully redraws a window, lazy methods needed for optimization
+        * buffer list and prompt buffer list indexes are separate
+
+        * window switching needs to be simplified, general functions implemented
+        
+        * bind system must be more complex to be able to handle non-hardcoded
+            non-printable characters, numerical non-hardcoded input without prompting
+        * implement the left binds, add more binds for MVP
+        * refactor binds for better usability
+
+        * draw ordering functions are not flexible, more general ordering functions needed
+        * status drawing alogrithm is crude and inflexible
+        * window drawing function fully redraws a window, lazy methods needed for optimization
             (draw only the modified line, half of a window etc.)
 
-        prompting(special window located just above status, emacs and vim-like)
+        * parameterizing buffers, windows and state is used by flags, which is inflexible and crude
+        
+        * memory allocation is panic-on-failure
 
-        add marks for left border if chars are going out of view
+        * add mutexes for data used in multiple threads
+            + use unused mutexes for shared data
 
-        implement the left binds, add more binds for MVP
+        * add marks for left border if chars are going out of view
 
-        text stylizing for scripts
+        * text stylizing for scripts
             colored text, blinking,
             bold, italicized, pale(dimmed),
                 understrike(?), throughstrike(?)
 
-        window/buffer additionals for scripts
+        * window/buffer additionals for scripts
             pop-up windows for autocompletion selection and hints
 
-        Scheme Lisp support/script
+        * Scheme Lisp support/script
             Parentheses highlighting
             Parentheses jump
             Atoms highlighting
@@ -84,20 +94,18 @@
             Procedures, macros, special forms database
                 for completion features
 
-        Scheme Lisp integration
+        * Scheme Lisp integration
 
         - MVP. From now on Scheme code is prioritized
             Will I be using SemVer? If so, MVP is 1.0.0
-            Thus, releases are needed(archives of precompiled binaries + source code?)
+            Thus, releases are needed(archives of precompiled binaries + source code)
         - Code refactoring and various fixes are obvious
-
-        also current bindings must be refactored for better usability
 
         (for Scheme Lisp)
         coroutines
         object system
 
-        <make several Scheme pet projects for experience>
+        <make several Scheme side projects related to UNN>
         
         LSP support? clangd is VERY needed
 
