@@ -48,6 +48,10 @@ typedef struct rgb_pair {
 typedef struct colors {
     rgb_pair gen;
     rgb_pair cur;
+    rgb_pair cur_line;
+    rgb_pair gen_unfocused;
+    rgb_pair cur_unfocused;
+    rgb_pair cur_line_unfocused;
 } colors;
 
 #endif

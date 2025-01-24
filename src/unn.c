@@ -64,7 +64,7 @@
 
         prompting(special window located just above status, emacs and vim-like)
 
-        add marks for left border if chars are goung out of view
+        add marks for left border if chars are going out of view
 
         implement the left binds, add more binds for MVP
 
@@ -169,12 +169,20 @@ void unn_init() {
     // default colors
     S.colors_default = (colors) {
         .cur = RGB_PAIR(255, 255, 255, 0, 0, 0),
-        .gen = RGB_PAIR(0, 0, 0, 255, 255, 255)
+        .cur_unfocused = RGB_PAIR(200, 200, 200, 55, 55, 55),
+        .cur_line = RGB_PAIR(10, 10, 10, 240, 240, 240),
+        .cur_line_unfocused = RGB_PAIR(2, 2, 2, 253, 253, 253),
+        .gen = RGB_PAIR(0, 0, 0, 255, 255, 255),
+        .gen_unfocused = RGB_PAIR(2, 2, 2, 253, 253, 253),
     };
     
     S.colors_prompt = (colors) {
         .cur = RGB_PAIR(255, 255, 230, 0, 0, 25),
-        .gen = RGB_PAIR(0, 0, 25, 255, 255, 230)
+        .cur_unfocused = RGB_PAIR(245, 245, 220, 10, 10, 35),
+        .cur_line = RGB_PAIR(0, 0, 25, 255, 255, 230), // same as gen
+        .cur_line_unfocused = RGB_PAIR(10, 10, 35, 245, 245, 220), // same as gen_unfocused
+        .gen = RGB_PAIR(0, 0, 25, 255, 255, 230),
+        .gen_unfocused = RGB_PAIR(10, 10, 35, 245, 245, 220),
     };
 
     S.colors_status = S.colors_default.cur;

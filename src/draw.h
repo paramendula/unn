@@ -43,14 +43,33 @@ int digits_count(int number) {
 
 // ugly code >:(
 inline static void draw_window_line(struct ncplane *p, window *w, offset view, 
-                                    offset cur, int y1, int x1, int width, int dc, char is_mark) {
+                                    offset cur, int y1, int x1, int width, int dc, char is_mark, char is_focused) {
     int len = (view.l) ? (view.l->len - view.pos) : 0;
 
+    char is_curline = view.l == cur.l;
+
     colors cl = w->cl;
+
+    rgb_pair colcur;
+    rgb_pair colcline;
+
+    if(is_focused) {
+        colcline = cl.cur_line;
+        colcur = cl.cur;
+    } else {
+        colcur = cl.cur_unfocused;
+        colcline = cl.cur_line_unfocused;
+    }
+
+    if(is_curline) {
+        ncplane_set_bg_rgb8(p, colcline.bg.r, colcline.bg.g, colcline.bg.b);
+        ncplane_set_fg_rgb8(p, colcline.fg.r, colcline.fg.g, colcline.fg.b);
+    }
 
     for(int i = x1; i < x1 + width + is_mark; i++) {
         ncplane_putchar_yx(p, y1, i, ' ');
     }
+
     ncplane_cursor_move_yx(p, y1, x1 - ((dc) ? (dc + 1) : 0));
 
     if(dc) { // if we number lines
@@ -81,11 +100,17 @@ inline static void draw_window_line(struct ncplane *p, window *w, offset view,
             nccell c = { 0 };
             c.gcluster = L' ';
 
-            nccell_set_bg_rgb8(&c, cl.cur.bg.r, cl.cur.bg.g, cl.cur.bg.b);
-            nccell_set_fg_rgb8(&c, cl.cur.fg.r, cl.cur.fg.g, cl.cur.fg.b);
+            nccell_set_bg_rgb8(&c, colcur.bg.r, colcur.bg.g, colcur.bg.b);
+            nccell_set_fg_rgb8(&c, colcur.fg.r, colcur.fg.g, colcur.fg.b);
 
             ncplane_putc_yx(S.p, y1, x1, &c);
         }
+
+        if(is_curline) { // go back
+            ncplane_set_bg_rgb8(S.p, cl.gen.bg.r, cl.gen.bg.g, cl.gen.bg.b);
+            ncplane_set_fg_rgb8(S.p, cl.gen.fg.r, cl.gen.fg.g, cl.gen.fg.b);
+        }
+
         return;
     }
     
@@ -102,8 +127,13 @@ inline static void draw_window_line(struct ncplane *p, window *w, offset view,
 
     ncplane_putwstr(p, wcstr);
 
+    if(is_curline) { // go back
+        ncplane_set_bg_rgb8(S.p, cl.gen.bg.r, cl.gen.bg.g, cl.gen.bg.b);
+        ncplane_set_fg_rgb8(S.p, cl.gen.fg.r, cl.gen.fg.g, cl.gen.fg.b);
+    }
+
     // draw cursor
-    if(cur.l == view.l) {
+    if(is_curline) {
         if(cur.pos >= view.pos) {
             nccell c = { 0 };
 
@@ -112,8 +142,8 @@ inline static void draw_window_line(struct ncplane *p, window *w, offset view,
 
             nccell_load_ucs32(p, &c, ch);
 
-            nccell_set_bg_rgb8(&c, cl.cur.bg.r, cl.cur.bg.g, cl.cur.bg.b);
-            nccell_set_fg_rgb8(&c, cl.cur.fg.r, cl.cur.fg.g, cl.cur.fg.b);
+            nccell_set_bg_rgb8(&c, colcur.bg.r, colcur.bg.g, colcur.bg.b);
+            nccell_set_fg_rgb8(&c, colcur.fg.r, colcur.fg.g, colcur.fg.b);
 
             if((cur.pos <= (view.pos + width - 1))) {
                 ncplane_putc_yx(S.p, y1, x1 + cur.pos - view.pos, &c);
@@ -127,8 +157,8 @@ inline static void draw_window_line(struct ncplane *p, window *w, offset view,
         if(is_mark) {
             nccell c = { 0 };
 
-            nccell_set_bg_rgb8(&c, cl.cur.bg.r, cl.cur.bg.g, cl.cur.bg.b);
-            nccell_set_fg_rgb8(&c, cl.cur.fg.r, cl.cur.fg.g, cl.cur.fg.b);
+            nccell_set_bg_rgb8(&c, colcur.bg.r, colcur.bg.g, colcur.bg.b);
+            nccell_set_fg_rgb8(&c, colcur.fg.r, colcur.fg.g, colcur.fg.b);
 
             c.gcluster = L'>';
 
@@ -148,6 +178,7 @@ int draw_window(struct ncplane *p, window *w) {
 
     char is_prompt = flag_is_on(w->buff->flags, BUFFER_PROMPT);
     char is_mark = !!flag_is_on(w->flags, WINDOW_LONG_MARKS);
+    char is_focused = S.current_window == w;
 
     int dc = 0;
 
@@ -178,9 +209,6 @@ int draw_window(struct ncplane *p, window *w) {
     ncplane_set_bg_rgb8(S.p, cl.gen.bg.r, cl.gen.bg.g, cl.gen.bg.b);
     ncplane_set_fg_rgb8(S.p, cl.gen.fg.r, cl.gen.fg.g, cl.gen.fg.b);
 
-    // TODO: draw unfocused windows differently
-    // char is_focused = S.current_window == w;
-
     if(!w->buff) return 0;
 
     // if prompt window, write the prompt string at the beginning and offset the cursor pos
@@ -199,7 +227,7 @@ int draw_window(struct ncplane *p, window *w) {
 
     int y = pos.y1;
     for(; y <= pos.y2; y++) {
-        draw_window_line(p, w, view, cur, y, pos.x1, width, dc, is_mark);
+        draw_window_line(p, w, view, cur, y, pos.x1, width, dc, is_mark, is_focused);
         if(!view.l->next) break;
         view.l = view.l->next;
     }
@@ -208,7 +236,7 @@ int draw_window(struct ncplane *p, window *w) {
     for(; y <= pos.y2; y++) { // lets finish the empty space
         draw_window_line(p, w, 
         (offset) { .index = 0, .pos = 0, .l = NULL }, 
-        cur, y, pos.x1, width, dc, is_mark);
+        cur, y, pos.x1, width, dc, is_mark, is_focused);
     }
     
     return 0;
