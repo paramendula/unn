@@ -33,4 +33,21 @@
 // bg color RGB
 // fg color RGB
 
+typedef struct rgb {
+    unsigned char r, g, b;
+} rgb;
+
+#define RGB(rr, gg, bb) ((rgb) { .r = rr, .g = gg, .b = bb })
+
+typedef struct rgb_pair {
+    rgb fg, bg;
+} rgb_pair;
+
+#define RGB_PAIR(r, g, b, r1, g1, b1) ((rgb_pair) { .fg = RGB(r, g, b), .bg = RGB(r1, g1, b1) })
+
+typedef struct colors {
+    rgb_pair gen;
+    rgb_pair cur;
+} colors;
+
 #endif

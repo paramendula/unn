@@ -669,6 +669,8 @@ void make_prompt(wchar_t *name, wchar_t *msg, callback prompt_cb) {
 
         S.current_window = pw;
 
+        pw->cl = S.colors_prompt;
+
         mode_edit();
 
         on_resize();

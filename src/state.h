@@ -26,6 +26,7 @@
 
 #include <notcurses/notcurses.h>
 
+#include "colors.h"
 #include "winbuf.h"
 #include "err.h"
 #include "bind.h"
@@ -54,6 +55,10 @@ typedef struct state {
 
     int flags;
     int draw_flags; // flags for draw loop
+
+    rgb_pair colors_status;
+    colors colors_default;
+    colors colors_prompt;
     
     sem_t draw_request;
     int draw_windows_count, draw_windows_count2; // two queues to not make other thread wait while
@@ -77,6 +82,7 @@ typedef struct state {
 
 // currently, memory allocations are either OK or panic
 int state_init(state *s, err *e) {
+    *s = (state) { 0 };
     notcurses_options opt = { 0 };
 
     if(!(s->nc = notcurses_core_init(&opt, stdout))) {
@@ -125,17 +131,10 @@ int state_init(state *s, err *e) {
     s->binds_edit = binds_empty();
     s->binds_prompt = binds_empty();
 
-    s->current_window = NULL;
-    s->other_window = NULL;
-    s->prompt_window = NULL;
-
-    s->tmp_window = NULL;
-
     s->draw_windows = (window **)malloc(sizeof(*s->draw_windows) * 16);
     s->draw_windows2 = (window **)malloc(sizeof(*s->draw_windows2) * 16);
 
     s->input_buffer_len = 0;
-    memset(&s->input_buffer, 0, sizeof(s->input_buffer));
 
     s->sim_cap = 25000; // microseconds, max 999999
 

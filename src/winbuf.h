@@ -109,8 +109,9 @@ typedef struct window {
     offset view, cur;
     buffer *buff;
 
-    int flags;
+    colors cl;
 
+    int flags;
     int last_pos; // for cursor vertical movement features
 
     callback on_destroy;

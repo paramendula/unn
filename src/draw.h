@@ -26,6 +26,7 @@
 
 #include "winbuf.h"
 #include "state.h"
+#include "colors.h"
 
 int digits_count(int number) {
     int d = 1;
@@ -42,10 +43,10 @@ int digits_count(int number) {
 
 // ugly code >:(
 inline static void draw_window_line(struct ncplane *p, window *w, offset view, 
-                                    offset cur, int y1, int x1, int width, int dc) {
+                                    offset cur, int y1, int x1, int width, int dc, char is_mark) {
     int len = (view.l) ? (view.l->len - view.pos) : 0;
 
-    char is_mark = !!flag_is_on(w->flags, WINDOW_LONG_MARKS);
+    colors cl = w->cl;
 
     for(int i = x1; i < x1 + width + is_mark; i++) {
         ncplane_putchar_yx(p, y1, i, ' ');
@@ -80,8 +81,8 @@ inline static void draw_window_line(struct ncplane *p, window *w, offset view,
             nccell c = { 0 };
             c.gcluster = L' ';
 
-            nccell_set_bg_rgb8(&c, 0, 0, 0);
-            nccell_set_fg_rgb8(&c, 255, 255, 255);
+            nccell_set_bg_rgb8(&c, cl.cur.bg.r, cl.cur.bg.g, cl.cur.bg.b);
+            nccell_set_fg_rgb8(&c, cl.cur.fg.r, cl.cur.fg.g, cl.cur.fg.b);
 
             ncplane_putc_yx(S.p, y1, x1, &c);
         }
@@ -111,16 +112,12 @@ inline static void draw_window_line(struct ncplane *p, window *w, offset view,
 
             nccell_load_ucs32(p, &c, ch);
 
-            nccell_set_bg_rgb8(&c, 0, 0, 0);
-            nccell_set_fg_rgb8(&c, 255, 255, 255);
+            nccell_set_bg_rgb8(&c, cl.cur.bg.r, cl.cur.bg.g, cl.cur.bg.b);
+            nccell_set_fg_rgb8(&c, cl.cur.fg.r, cl.cur.fg.g, cl.cur.fg.b);
 
             if((cur.pos <= (view.pos + width - 1))) {
                 ncplane_putc_yx(S.p, y1, x1 + cur.pos - view.pos, &c);
             } 
-            // TODO
-            /* else {  // if out of view down the line
-                ncplane_putc_yx(S.p, y1, x1 + width - 1, &c);
-            } */
         }
     }
 
@@ -130,8 +127,8 @@ inline static void draw_window_line(struct ncplane *p, window *w, offset view,
         if(is_mark) {
             nccell c = { 0 };
 
-            nccell_set_bg_rgb8(&c, 0, 0, 0);
-            nccell_set_fg_rgb8(&c, 255, 255, 255);
+            nccell_set_bg_rgb8(&c, cl.cur.bg.r, cl.cur.bg.g, cl.cur.bg.b);
+            nccell_set_fg_rgb8(&c, cl.cur.fg.r, cl.cur.fg.g, cl.cur.fg.b);
 
             c.gcluster = L'>';
 
@@ -147,7 +144,10 @@ int draw_window(struct ncplane *p, window *w) {
     offset cur = w->cur;
     offset view = w->view;
 
+    colors cl = w->cl;
+
     char is_prompt = flag_is_on(w->buff->flags, BUFFER_PROMPT);
+    char is_mark = !!flag_is_on(w->flags, WINDOW_LONG_MARKS);
 
     int dc = 0;
 
@@ -175,10 +175,8 @@ int draw_window(struct ncplane *p, window *w) {
     logg("Drawing window: %d %d %d %d - %d %d\n",
     pos.y1, pos.x1, pos.y2, pos.x2, height, width);
 
-    if(is_prompt) {
-        ncplane_set_fg_rgb8(S.p, 0, 0, 25);
-        ncplane_set_bg_rgb8(S.p, 255, 255, 230);
-    }
+    ncplane_set_bg_rgb8(S.p, cl.gen.bg.r, cl.gen.bg.g, cl.gen.bg.b);
+    ncplane_set_fg_rgb8(S.p, cl.gen.fg.r, cl.gen.fg.g, cl.gen.fg.b);
 
     // TODO: draw unfocused windows differently
     // char is_focused = S.current_window == w;
@@ -201,7 +199,7 @@ int draw_window(struct ncplane *p, window *w) {
 
     int y = pos.y1;
     for(; y <= pos.y2; y++) {
-        draw_window_line(p, w, view, cur, y, pos.x1, width, dc);
+        draw_window_line(p, w, view, cur, y, pos.x1, width, dc, is_mark);
         if(!view.l->next) break;
         view.l = view.l->next;
     }
@@ -210,11 +208,8 @@ int draw_window(struct ncplane *p, window *w) {
     for(; y <= pos.y2; y++) { // lets finish the empty space
         draw_window_line(p, w, 
         (offset) { .index = 0, .pos = 0, .l = NULL }, 
-        cur, y, pos.x1, width, dc);
+        cur, y, pos.x1, width, dc, is_mark);
     }
-
-    ncplane_set_fg_rgb8(S.p, 0, 0, 0);
-    ncplane_set_bg_rgb8(S.p, 255, 255, 255);
     
     return 0;
 }
@@ -246,8 +241,10 @@ int draw_status(struct ncplane *p) {
 
     logg("Drawing status at %d %d\n", y, x);
 
-    ncplane_set_fg_rgb8(S.p, 255, 255, 255);
-    ncplane_set_bg_rgb8(S.p, 0, 0, 0);
+    ncplane_set_fg_rgb8(S.p, S.colors_status.fg.r, S.colors_status.fg.g, S.colors_status.fg.b);
+    ncplane_set_bg_rgb8(S.p, S.colors_status.bg.r, S.colors_status.bg.g, S.colors_status.bg.b);
+
+    logg("%d %d %d\n", S.colors_status.fg.r, S.colors_status.fg.g, S.colors_status.fg.b);
 
     for(int i = 0; i < max_x; i++) {
         ncplane_putchar_yx(S.p, y, x + i, ' ');
@@ -292,9 +289,6 @@ int draw_status(struct ncplane *p) {
     }
 
     ncplane_putwstr_yx(p, y, x, buffer);
-
-    ncplane_set_bg_rgb8(S.p, 255, 255, 255);
-    ncplane_set_fg_rgb8(S.p, 0, 0, 0);
 
     return 0;
 }

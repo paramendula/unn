@@ -64,7 +64,7 @@
 
         prompting(special window located just above status, emacs and vim-like)
 
-        add marks for left border if view if chars are goung out of view
+        add marks for left border if chars are goung out of view
 
         implement the left binds, add more binds for MVP
 
@@ -166,6 +166,18 @@ void unn_init() {
     state_init(&S, &e);
     err_fatal(&e);
 
+    // default colors
+    S.colors_default = (colors) {
+        .cur = RGB_PAIR(255, 255, 255, 0, 0, 0),
+        .gen = RGB_PAIR(0, 0, 0, 255, 255, 255)
+    };
+    
+    S.colors_prompt = (colors) {
+        .cur = RGB_PAIR(255, 255, 230, 0, 0, 25),
+        .gen = RGB_PAIR(0, 0, 25, 255, 255, 230)
+    };
+
+    S.colors_status = S.colors_default.cur;
     // binds
     for(int i = 0; i < sizeof(MOVE_BINDINGS) / sizeof(*MOVE_BINDINGS) - 1; i++) {
         binds_set(S.binds_move, NULL, MOVE_BINDINGS + i);

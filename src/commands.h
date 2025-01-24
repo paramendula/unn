@@ -282,6 +282,8 @@ void new_window_command() {
         loc.y2 = 1;
     }
 
+    w->cl = S.colors_default;
+
     grid_insert_loc(S.grid, w, loc);
 
     S.current_window = w;
