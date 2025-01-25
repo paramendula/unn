@@ -47,7 +47,16 @@
     !!  but certainly are going to be fixed after
     !!  some time.
 
-    TODO(appropximated):
+    Daily minimum task list (move it somewhere else later):
+        26.01.25: Colored buffer, separate drawing functions for buffers
+        27.01.25: Optimize windows drawing to only draw changed lines
+        28.01.25: Small Scheme parser, also something for Lisp Buffer
+        29.01.25: Line wrapping, make colored buffers default
+        30.01.25: Grid matrix for win movement commands, overlay windows
+        31.01.25: Implement some commented about movement commands
+        01.02.25: Implement selection
+
+    TODO (appropximated):
 
         * add matrix of cells to grid for window switching commands
         make grid more flexible, so that static windows like prompt can be made easily
@@ -79,6 +88,7 @@
             + use unused mutexes for shared data
 
         * add marks for left border if chars are going out of view
+            (do we need it??)
 
         * text stylizing for scripts
             colored text, blinking,
