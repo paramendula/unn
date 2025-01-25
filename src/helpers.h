@@ -19,15 +19,14 @@
 #ifndef __UNN_HELPERS_H_
 #define __UNN_HELPERS_H_
 
-#include "winbuf.h"
-#include "state.h"
-
 #include <stdio.h>
+#include <stdlib.h>
 #include <wchar.h>
 #include <string.h>
 
 #include <sys/stat.h>
 
+#include "state.h"
 
 void mode_move() {
     state_flag_off(FLAG_EDIT);
@@ -51,7 +50,9 @@ wchar_t *wstr_copy(wchar_t *str) {
     if(!str) return NULL;
     size_t len = wcslen(str);
     
-    wchar_t *wcs = (wchar_t *)unn_malloc(sizeof(*wcs) * (len + 1));
+    wchar_t *wcs = (wchar_t *)malloc(sizeof(*wcs) * (len + 1));
+
+    if(!wcs) return NULL;
 
     wcscpy(wcs, str);
     wcs[len] = 0;
@@ -59,20 +60,25 @@ wchar_t *wstr_copy(wchar_t *str) {
     return wcs;
 }
 
-inline static void _line_check(line *l, int amount) {
-    if((l->len + amount) <= l->cap) return;
+inline static int _line_check(line *l, int amount) {
+    if((l->len + amount) <= l->cap) return 0;
 
     int new_cap = l->cap * 2;
     while((l->len + amount) > new_cap) new_cap *= 2;
 
-    wchar_t *str = (wchar_t *)unn_realloc(l->str, (new_cap + 1) * sizeof(*str));
+    wchar_t *str = (wchar_t *)realloc(l->str, (new_cap + 1) * sizeof(*str));
+
+    if(!str) return -1;
 
     l->cap = new_cap;
     l->str = str;
+
+    return 0;
 }
 
 int line_insert(line *l, wchar_t ch, int index) {
-    _line_check(l, 1);
+    if(!l) return -1;
+    if(_line_check(l, 1)) return -2;
 
     int to_move = l->len - index;
 
@@ -86,7 +92,9 @@ int line_insert(line *l, wchar_t ch, int index) {
 }
 
 int line_insert_multi(line *l, wchar_t *wbuff, int len, int index) {
-    _line_check(l, len);
+    if(!l) return -1;
+    if(!wbuff) return -1;
+    if(_line_check(l, len)) return -2;
 
     int to_move = l->len - index;
 
@@ -118,6 +126,8 @@ inline static int line_append_str(line *l, wchar_t *str) {
 }
 
 int line_remove(line *l, int index, wchar_t *buff) {
+    if(!l) return -1;
+
     wchar_t ch = l->str[index];
 
     int to_move = sizeof(*l->str) * (l->len - index - 1);
@@ -134,6 +144,8 @@ int line_remove(line *l, int index, wchar_t *buff) {
 }
 
 int line_remove_multi(line *l, int index, int amount, wchar_t *buff) {
+    if(!l) return -1;
+
     if(buff) {
         for(int i = index; i < index + amount; i++) {
             *buff = l->str[i];
@@ -157,6 +169,9 @@ line *read_file_to_lines(FILE *fp, line **last_buffer, int *lc_buffer) {
 
     int lines_count = 1;
     line *first = line_empty(4);
+
+    if(!first) return NULL;
+
     line *last = first;
 
     char raw_buffer[512];
@@ -191,6 +206,12 @@ line *read_file_to_lines(FILE *fp, line **last_buffer, int *lc_buffer) {
 
             if(ch == L'\n') {
                 line *new_line = line_empty(4);
+
+                if(!new_line) {
+                    node_free_nexts((node *)first, (free_func)line_free);
+                    return NULL;
+                }
+
                 last->next = new_line;
                 new_line->prev = last;
 
@@ -533,13 +554,16 @@ int adjust_view_for_cursor(window *w) {
     int cidx = w->cur.index;
     int cpos = w->cur.pos;
 
+    int is_markers = !!flag_is_on(w->flags, WINDOW_LONG_MARKS);
+    int dc = (w->dc) ? (w->dc + 1) : 0;
+
     int height = w->pos.y2 - w->pos.y1 + 1;
-    int width = w->pos.x2 - w->pos.x1;
+    int width = w->pos.x2 - w->pos.x1 + 1;
 
     int top_line = w->view.index;
     int bottom_line = top_line + height - 1;
     int left_border = w->view.pos;
-    int right_border = left_border + width;
+    int right_border = left_border + width - is_markers - dc;
 
     int view_x = -1;
     int view_dy = 0;
@@ -551,12 +575,12 @@ int adjust_view_for_cursor(window *w) {
         view_dy = cidx - bottom_line;
     }
 
-    int is_markers = !!flag_is_on(w->flags, WINDOW_LONG_MARKS);
+    logg("border: %d; cpos: %d\n", right_border, cpos);
 
     if(left_border > cpos) { // change the whole view window is cur is in the different section
         int attempt = cpos - width + 1 - is_markers; // -1 for side markers
         view_x = (attempt > 0) ? attempt : 0;
-    } else if(right_border <= cpos + is_markers) { // + 1 for side markers
+    } else if(right_border <= cpos) { // + 1 for side markers
         view_x = cpos;
     }
 

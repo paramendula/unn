@@ -27,7 +27,8 @@
 #include <notcurses/notcurses.h>
 
 #include "colors.h"
-#include "winbuf.h"
+#include "buffer.h"
+#include "window.h"
 #include "err.h"
 #include "bind.h"
 
@@ -86,53 +87,77 @@ int state_init(state *s, err *e) {
     notcurses_options opt = { 0 };
 
     if(!(s->nc = notcurses_core_init(&opt, stdout))) {
-        err_set(e, -1, "notcurses_core_init failed");
+        err_set(e, -1, L"notcurses_core_init failed");
         return -1;
     }
 
     notcurses_linesigs_disable(s->nc); // disable Ctrl+C quit
 
     if(!(s->p = notcurses_stdplane(s->nc))) {
-        err_set(e, -2, "notcurses_stdplane returned NULL");
+        err_set(e, -2, L"notcurses_stdplane returned NULL");
         return -2;
     }
 
     if(sem_init(&s->draw_request, 0, 0)) {
-        err_set(e, -3, "sem_init for draw_request failed");
+        err_set(e, -3, L"sem_init for draw_request failed");
         return -3;
     }
 
-    if(pthread_mutex_init(&s->draw_flags_block, NULL)) {
-        err_set(e, -4, "pthread_mutex_init for draw_flags_block failed");
+    // always return 0
+    pthread_mutex_init(&s->draw_flags_block, NULL);
+    pthread_mutex_init(&s->status_message_block, NULL);
+    pthread_mutex_init(&s->state_flags_block, NULL);
+    pthread_mutex_init(&s->draw_block, NULL);
+
+    s->grid = (grid *)calloc(1, sizeof(*s->grid));
+    if(!s->grid) {
+        err_set(e, -4, L"not enough memory");
         return -4;
     }
 
-    if(pthread_mutex_init(&s->status_message_block, NULL)) {
-        err_set(e, -5, "pthread_mutex_init for status_message_block failed");
-        return -5;
-    }
-
-    if(pthread_mutex_init(&s->state_flags_block, NULL)) {
-        err_set(e, -6, "pthread_mutex_init for status_flags_block failed");
-        return -6;
-    }
-
-    if(pthread_mutex_init(&s->draw_block, NULL)) {
-        err_set(e, -7, "pthread_mutex_init for draw_block failed");
-        return -7;
-    }
-
-    s->grid = (grid *)calloc(1, sizeof(*s->grid));
     s->blist = (buffer_list *)calloc(1, sizeof(*s->blist));
+    if(!s->blist) {
+        err_set(e, -4, L"not enough memory");
+        return -4;
+    }
+
     s->blist_prompts = (buffer_list *)calloc(1, sizeof(*s->blist_prompts));
+    if(!s->blist_prompts) {
+        err_set(e, -4, L"not enough memory");
+        return -4;
+    }
+
     s->flags = 0;
 
     s->binds_move = binds_empty(); // to be filled after initialization
+    if(!s->binds_move) {
+        err_set(e, -4, L"not enough memory");
+        return -4;
+    }
+
     s->binds_edit = binds_empty();
+    if(!s->binds_edit) {
+        err_set(e, -4, L"not enough memory");
+        return -4;
+    }
+    
     s->binds_prompt = binds_empty();
+    if(!s->binds_prompt) {
+        err_set(e, -4, L"not enough memory");
+        return -4;
+    }
 
     s->draw_windows = (window **)malloc(sizeof(*s->draw_windows) * 16);
+    if(!s->draw_windows) {
+        err_set(e, -4, L"not enough memory");
+        return -4;
+    }
+
     s->draw_windows2 = (window **)malloc(sizeof(*s->draw_windows2) * 16);
+    if(!s->draw_windows2) {
+        err_set(e, -4, L"not enough memory");
+        return -4;
+    }
 
     s->input_buffer_len = 0;
 
@@ -154,6 +179,8 @@ void state_deinit(state *s) {
     }
 
     if(s->nc) notcurses_stop(s->nc);
+
+    // no need to check if NULL, free functions do it already
     grid_free(s->grid);
     blist_free(s->blist);
     blist_free(s->blist_prompts);
@@ -162,9 +189,13 @@ void state_deinit(state *s) {
     binds_free(s->binds_edit);
     binds_free(s->binds_prompt);
 
-    free(s->draw_windows);
-    free(s->draw_windows2);
+    if(s->draw_windows)
+        free(s->draw_windows);
+    
+    if(s->draw_windows2)
+        free(s->draw_windows2);
 
+    // not sure if I should check if those are init'd
     sem_destroy(&s->draw_request);
     pthread_mutex_destroy(&s->draw_flags_block);
     pthread_mutex_destroy(&s->status_message_block);

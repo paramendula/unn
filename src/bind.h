@@ -21,7 +21,7 @@
 
 #include <stdlib.h>
 
-#include "mem.h"
+#include "misc.h"
 
 // continuations are virtual #(:-3>-<--< (somewhat)
 
@@ -77,8 +77,16 @@ void binds_free(binds *b) {
 }
 
 binds *binds_empty() {
-    binds *b = (binds *)unn_malloc(sizeof(*b));
-    bucket **bucks = (bucket **)unn_calloc(256, sizeof(*bucks));
+    binds *b = (binds *)malloc(sizeof(*b));
+
+    if(!b) return NULL;
+
+    bucket **bucks = (bucket **)calloc(256, sizeof(*bucks));
+
+    if(!bucks) {
+        free(b);
+        return NULL;
+    }
 
     b->flags = 0;
     b->len = 0;
@@ -89,9 +97,16 @@ binds *binds_empty() {
 }
 
 inline static void _binds_add(binds *b, size_t hash, size_t index, char *seq, tusk cb) {
-    bucket **buck_ref = b->bucks + index;
+    if(!b) return;
+    if(!seq) return;
 
-    bucket *buck = (bucket *)unn_malloc(sizeof(*buck));
+    bucket *buck = (bucket *)malloc(sizeof(*buck));
+
+    if(!buck) {
+        return;
+    }
+
+    bucket **buck_ref = b->bucks + index;
 
     memcpy(buck->bind, seq, 16);
     buck->cb = cb;
@@ -123,8 +138,14 @@ inline static void _binds_add(binds *b, size_t hash, size_t index, char *seq, tu
 
 int binds_set(binds *b, const char *prefix, ubind *u) {
     char seq[16] = { 0 };
-    if(prefix) strcpy(seq, prefix);
-    strcat(seq, u->seq);
+
+    if(prefix) { // begin with prefix if it exists
+        strncpy(seq, prefix, sizeof(seq) - 1);
+        int l = strlen(prefix);
+        strncpy(seq + l, u->seq, sizeof(seq) - 1 - l);
+    } else {
+        strncpy(seq, u->seq, sizeof(seq) - 1);
+    }
 
     size_t hash = bad_hash(seq);
     size_t index = hash % b->cap;

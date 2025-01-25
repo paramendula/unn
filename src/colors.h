@@ -24,6 +24,7 @@
 #include <wchar.h>
 
 #include "list.h"
+#include "buffer.h"
 
 // header for text styling, TODO
 
@@ -46,12 +47,36 @@ typedef struct rgb_pair {
 #define RGB_PAIR(r, g, b, r1, g1, b1) ((rgb_pair) { .fg = RGB(r, g, b), .bg = RGB(r1, g1, b1) })
 
 typedef struct colors {
-    rgb_pair gen;
-    rgb_pair cur;
-    rgb_pair cur_line;
-    rgb_pair gen_unfocused;
+    rgb_pair gen; // general text
+    rgb_pair cur; // cursor/selection
+    rgb_pair cur_line; // line with a cursor
+    rgb_pair gen_unfocused; // same as above, but if unfocused
     rgb_pair cur_unfocused;
     rgb_pair cur_line_unfocused;
 } colors;
+
+// I'm not sure if this is efficient
+typedef struct dchar {
+    wchar_t wch;
+    rgb_pair color;
+    // TODO: underline, bold, italic, etc.
+} dchar;
+
+typedef struct dline {
+    struct dline *prev, *next;
+
+    int len, cap;
+    dchar *dstr;
+} dline;
+
+// buffer with colored, decorated text
+typedef struct cbuffer {
+    buffer buff;
+
+    int dlines_count;
+    dline *first, *last;
+} cbuffer; 
+
+#define CBUFFER_LIST(cbuff) (&((cbuff)->dlines_count))
 
 #endif

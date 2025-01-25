@@ -19,16 +19,17 @@
 #ifndef __UNN_LOGIC_H_
 #define __UNN_LOGIC_H_
 
-#include <pthread.h>
-#include <semaphore.h>
-#include <sys/time.h>
 #include <string.h>
-#include <ctype.h>
 #include <wchar.h>
 #include <wctype.h>
 
+#include <pthread.h>
+#include <semaphore.h>
+#include <sys/time.h>
+
 #include "state.h"
 #include "draw.h"
+#include "misc.h"
 
 inline static void state_flag_on(int f) {
     pthread_mutex_lock(&S.state_flags_block);

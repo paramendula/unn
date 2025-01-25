@@ -5,5 +5,7 @@ other
 log
 logs.txt
 
+.vscode
+
 *.out
 unn

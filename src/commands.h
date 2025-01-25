@@ -19,8 +19,6 @@
 #ifndef __UNN_COMMANDS_H_
 #define __UNN_COMMANDS_H_
 
-#include "winbuf.h"
-#include "err.h"
 #include "state.h"
 #include "logic.h"
 

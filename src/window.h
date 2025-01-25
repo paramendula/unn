@@ -24,10 +24,11 @@
 
 #include <pthread.h>
 
-#include "mem.h"
+#include "misc.h"
 #include "flags.h"
 #include "list.h"
 #include "bind.h"
+#include "buffer.h"
 #include "colors.h"
 
 #define BUFFER_PROMPT 1
@@ -35,57 +36,6 @@
 #define WINDOW_LINES 1
 #define WINDOW_LONG_MARKS 2
 #define WINDOW_DEFAULT (WINDOW_LINES | WINDOW_LONG_MARKS)
-
-typedef void(*callback)(void*);
-
-typedef struct line {
-    struct line *prev, *next;
-
-    int len, cap;
-    wchar_t *str;
-} line;
-
-typedef struct buffer {
-    struct buffer *prev, *next;
-
-    int lines_count;
-    line *first, *last;
-
-    wchar_t *path, *name;
-    int index;
-    int flags;
-
-    pthread_mutex_t block;
-
-    callback on_destroy;
-
-    binds *move_binds;
-    binds *edit_binds;
-
-    void *current_window;
-
-    void *userdata;
-} buffer;
-
-#define BUFFER_LIST(buff) ((list *)(&((buff)->lines_count)))
-
-typedef struct int_node {
-    struct int_node *prev, *next;
-    int val;
-} int_node;
-
-typedef struct int_list {
-    int count;
-    int_node *first, *last;
-} int_list;
-
-typedef struct buffer_list {
-    int buffers_count;
-    buffer *first, *last;
-
-    int_list indexes;
-    int last_index;
-} buffer_list;
 
 typedef struct rect {
     int y1, x1;
@@ -113,6 +63,7 @@ typedef struct window {
 
     int flags;
     int last_pos; // for cursor vertical movement features
+    int dc; // digits count for line numbers
 
     callback on_destroy;
 } window;
@@ -124,127 +75,10 @@ typedef struct grid {
     int height, width;
 } grid;
 
-line *line_empty(int cap) {
-    line *l = (line *)unn_calloc(1, sizeof(*l));
-
-    wchar_t *str = (wchar_t *)unn_malloc((sizeof(*str) + 1) * cap);
-
-    str[0] = 0;
-    l->cap = cap;
-    l->str = str;
-
-    return l;
-}
-
-void line_free(line *l) {
-    if(!l) return;
-
-    free(l->str);
-    free(l);
-}
-
-buffer *buffer_from_lines(const wchar_t *name, line *first, line *last, int line_count) {
-    buffer *b = (buffer *)unn_calloc(1, sizeof(*b));
-
-    wchar_t *name_copy = (wchar_t *)unn_malloc((wcslen(name) + 1) * sizeof(*name_copy));
-    wcscpy(name_copy, name);
-
-    b->first = first;
-    b->last = last;
-    b->lines_count = line_count;
-    b->name = name_copy;
-    b->on_destroy = NULL;
-    b->current_window = NULL;
-
-    b->edit_binds = NULL;
-    b->move_binds = NULL;
-    
-    pthread_mutex_init(&b->block, NULL);
-
-    return b;
-}
-
-inline static buffer *buffer_empty(const wchar_t *name) {
-    line *l = line_empty(4);
-    return buffer_from_lines(name, l, l, 1);
-}
-
-void buffer_free(buffer *b) {
-    if(!b) return;
-
-    node_free_nexts((node *)b->first, (free_func)line_free);
-
-    if(b->path)
-        free(b->path);
-
-    if(b->name)
-        free(b->name);
-    
-    pthread_mutex_destroy(&b->block);
-
-    if(b->edit_binds)
-        binds_free(b->edit_binds);
-    
-    if(b->move_binds)
-        binds_free(b->move_binds);
-
-    free(b);
-}
-
-int blist_insert(buffer_list *blist, buffer *b) {
-    list_append((list *)blist, (node *)b);
-
-    if(blist->indexes.count) {
-        int_node *n = blist->indexes.first;
-
-        int i = n->val;
-        b->index = i;
-        
-        list_remove((list *)&(blist->indexes), (node *)n);
-        free(n);
-    } else {
-        b->index = ++blist->last_index;
-    }
-
-    return 0;
-}
-
-int blist_remove(buffer_list *blist, buffer *b) {
-    int i = b->index;
-
-    int_node *ni = (int_node *)unn_calloc(1, sizeof(*ni));
-    ni->val = i;
-
-    list_remove((list *)blist, (node *)b);
-
-    int_node *n;
-    for(n = blist->indexes.first; n != NULL && n->next != NULL; n = n->next) {
-        if(n->val > i) break;
-    }
-
-    if(!n) {
-        blist->indexes.first = ni;
-        blist->indexes.last = ni;
-        blist->indexes.count++;
-        return 0;
-    }
-
-    if(n->prev == NULL && (n->val < i)) {
-        list_insert_after((list *)&(blist->indexes), (node *)n, (node *)ni);
-    } else
-        list_insert_before((list *)&(blist->indexes), (node *)n, (node *)ni);
-
-    return 0;
-}
-
-void blist_free(buffer_list *b) {
-    node_free_nexts((node *)b->first, (free_func)buffer_free);
-    node_free_nexts((node *)b->indexes.first, free);
-    free(b);
-}
-
 window *window_with_buffer(buffer *buff) {
-    window *win = (window *)unn_calloc(1, sizeof(*win));
+    window *win = (window *)calloc(1, sizeof(*win));
+
+    if(!win) return NULL;
 
     win->buff = buff;
     win->cur = (offset) {
@@ -265,8 +99,10 @@ inline static window *window_empty(wchar_t *buff_name) {
 }
 
 int grid_fit(grid *g, rect pos) {
-    if(!g->height) return -1;
-    if(!g->width) return -1;
+    if(!g) return -1;
+
+    if(!g->height) return -2;
+    if(!g->width) return -2;
 
     int pos_height = pos.y2 - pos.y1 + 1;
     int pos_width = pos.x2 - pos.x1 + 1;
@@ -330,6 +166,9 @@ inline static int grid_insert_loc(grid *g, window *w, rect loc) {
 }
 
 int grid_remove(grid *g, window *w) {
+    if(!g) return -1;
+    if(!w) return -1;
+
     list_remove((list *)g, (node *)w);
 
     int test_height = w->loc.y2;

@@ -21,6 +21,8 @@
 
 #include <stdlib.h>
 
+#include "misc.h"
+
 typedef struct node {
     struct node *prev, *next;
 } node;
@@ -29,8 +31,6 @@ typedef struct list {
     int count;
     node *first, *last;
 } list;
-
-typedef void(*free_func)(void*);
 
 void node_free_nexts(node *n, free_func f) {
     node *tmp;

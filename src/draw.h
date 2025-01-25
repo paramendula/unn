@@ -24,7 +24,7 @@
 #include <notcurses/notcurses.h>
 #include <pthread.h>
 
-#include "winbuf.h"
+#include "window.h"
 #include "state.h"
 #include "colors.h"
 
@@ -196,11 +196,15 @@ int draw_window(struct ncplane *p, window *w) {
         int n_width = width - dc - 1;
         if(n_width < 1) {
             dc = 0;
+            w->dc = 0;
             flag_off(w->flags, WINDOW_LINES);
         } else {
             width = n_width;
             pos.x1 += dc + 1;
+            w->dc = dc;
         }
+    } else {
+        w->dc = 0;
     }
 
     logg("Drawing window: %d %d %d %d - %d %d\n",

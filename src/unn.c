@@ -26,7 +26,8 @@
 
         bind.h - bindings primitive hash map implementation
         binds.h - arrays of default bindings
-        colors.h - useful structures and definitions for coloring
+        buffer.h - UNN's general buffer implementation
+        colors.h - useful structures and definitions for coloring, colored buffer, etc.
         commands.h - general commands represented by thunks (no-arg, no-ret) used by bindings
         draw.h - window, status, grid drawing functions
         err.h - simple error handling structure and functions, mainly forgotten about
@@ -36,10 +37,10 @@
         lisp.h - header for functions that some Lisp implementation should export for UNN to use
         list.h - simple doubly-linked list implementation
         logic.h - main logic implemented in functions, draw/input loop functions
-        mem.h - stupid panic-on-error memory alloc functions
+        misc.h - miscallenous types and definitios
         panic.h - exposes a single function that simply panics (aborts)
         state.h - general UNN state expressed by a single structure and it's helper functions
-        winbuf.h - general definitions of window, buffer, grid, etc. and it's helper functions
+        window.h - general definitions for window, grid, etc. and it's helper functions
         unn.c - state + logic glue and bootstrapper
 
     !!  Multithreading problems do currently exist,
@@ -68,10 +69,11 @@
         * status drawing alogrithm is crude and inflexible
         * window drawing function fully redraws a window, lazy methods needed for optimization
             (draw only the modified line, half of a window etc.)
+            * save pre-drawn notcurses buffer, only draw changed lines/dlines into it
+        
+        * make buffers abstract along with it's drawing and processing functions
 
         * parameterizing buffers, windows and state is used by flags, which is inflexible and crude
-        
-        * memory allocation is panic-on-failure
 
         * add mutexes for data used in multiple threads
             + use unused mutexes for shared data
@@ -82,6 +84,8 @@
             colored text, blinking,
             bold, italicized, pale(dimmed),
                 understrike(?), throughstrike(?)
+
+        * wrap lines feature
 
         * window/buffer additionals for scripts
             pop-up windows for autocompletion selection and hints
@@ -161,6 +165,10 @@ void unn_cleanup() {
     state_deinit(&S);
 
     pthread_mutex_destroy(&log_mutex);
+
+    if(e.code) {
+        printf("UNN exited with an error[%d]: %ls\n", e.code, e.message);
+    }
 }
 
 void unn_init() {
@@ -172,7 +180,10 @@ void unn_init() {
     pthread_mutex_init(&log_mutex, NULL);
 
     state_init(&S, &e);
-    err_fatal(&e);
+    
+    if(e.code) {
+        return;
+    }
 
     // default colors
     S.colors_default = (colors) {
@@ -213,6 +224,8 @@ void unn_init() {
 }
 
 void unn_run() {
+    if(e.code) return;
+
     pthread_create(&S.iloop, NULL, input_loop, NULL);
     pthread_create(&S.dloop, NULL, draw_loop, NULL);
 
