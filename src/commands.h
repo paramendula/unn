@@ -132,21 +132,36 @@ void buffer_newline_at_cursor() {
 
     offset *cur = &S.current_window->cur;
 
-    int new = (cur->l->len - cur->pos);
+    int new = (cur->gl->len - cur->pos);
 
-    line *l = line_empty(new + 4);
+    if(flag_is_off(S.current_window->buff->flags, BUFFER_COLORED)) {
+        line *l = line_empty(new + 4);
 
-    if(new) {
-        line_append_str(l, cur->l->str + cur->pos);
+        if(new) {
+            line_append_str(l, cur->l->str + cur->pos);
 
-        cur->l->len = cur->pos;
-        cur->l->str[cur->pos] = 0;
+            cur->l->len = cur->pos;
+            cur->l->str[cur->pos] = 0;
+        }
+
+        list_insert_after(BUFFER_LIST(S.current_window->buff), (node *)cur->l, (node *)l);
+
+        cur->l = l;
+    } else {
+        dline *dl = dline_empty(new + 4);
+
+        if(new) {
+            dline_append_multi(dl, cur->dl->dstr, cur->dl->len);
+
+            cur->dl->len = cur->pos;
+        }
+
+        list_insert_after(CBUFFER_LIST((cbuffer*)S.current_window->buff), (node *)cur->dl, (node *)dl);
+
+        cur->dl = dl;
     }
 
-    list_insert_after(BUFFER_LIST(S.current_window->buff), (node *)cur->l, (node *)l);
-
     cur->pos = 0;
-    cur->l = l;
     cur->index++;
 
     adjust_view_for_cursor(S.current_window);
@@ -161,27 +176,53 @@ void buffer_erase_at_cursor() {
 
     offset *cur = &S.current_window->cur;
 
-    if(cur->pos == 0) {
-        line *prev = cur->l->prev;
 
-        if(!prev) {
-            pthread_mutex_unlock(&S.current_window->buff->block);
-            return;
+    if(flag_is_on(S.current_window->buff->flags, BUFFER_COLORED)) {
+        if(cur->pos == 0) {
+            dline *prev = cur->dl->prev;
+
+            if(!prev) {
+                pthread_mutex_unlock(&S.current_window->buff->block);
+                return;
+            }
+
+            dline *dl = cur->dl;
+            
+            list_remove(CBUFFER_LIST((cbuffer *)S.current_window->buff), (node *)dl);
+
+            cur->pos = prev->len;
+            dline_append_multi(prev, dl->dstr, dl->len);
+            
+            cur->dl = prev;
+
+            dline_free(dl);
+        } else {
+            dline_remove(cur->dl, cur->pos - 1, NULL);
+            cursor_left();
         }
-
-        line *l = cur->l;
-        
-        list_remove(BUFFER_LIST(S.current_window->buff), (node *)l);
-
-        cur->pos = prev->len;
-        line_append_str(prev, l->str);
-        
-        cur->l = prev;
-
-        line_free(l);
     } else {
-        line_remove(cur->l, cur->pos - 1, NULL);
-        cursor_left();
+        if(cur->pos == 0) {
+            line *prev = cur->l->prev;
+
+            if(!prev) {
+                pthread_mutex_unlock(&S.current_window->buff->block);
+                return;
+            }
+
+            line *l = cur->l;
+            
+            list_remove(BUFFER_LIST(S.current_window->buff), (node *)l);
+
+            cur->pos = prev->len;
+            line_append_str(prev, l->str);
+            
+            cur->l = prev;
+
+            line_free(l);
+        } else {
+            line_remove(cur->l, cur->pos - 1, NULL);
+            cursor_left();
+        }
     }
 
     adjust_view_for_cursor(S.current_window);
@@ -229,6 +270,26 @@ void current_buffer_switch_new_colored() {
     
     order_draw_window(S.current_window);
     order_draw_status();                // not optimal, locking mutex twice in a row
+}
+
+void current_buffer_inverse_cur_color() {
+    if(!S.current_window) return;
+    if(!S.current_window->buff) return;
+
+    cbuffer *cb = (cbuffer *)S.current_window->buff;
+
+    if(flag_is_off(cb->buff.flags, BUFFER_COLORED)) return;
+
+    dchar *dch = &(S.current_window->cur.dl->dstr[S.current_window->cur.pos]);
+
+    rgb_pair col = dch->color;
+
+    if(flag_is_off(dch->flags, DCHAR_COLORED)) {
+        dch->flags |= DCHAR_COLORED;
+        col = S.current_window->cl.focused.gen;
+    }
+    
+    dch->color = RGB_PAIR_INVERSE(col);
 }
 
 void current_buffer_switch_from_file() {

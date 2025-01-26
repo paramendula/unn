@@ -62,7 +62,7 @@ typedef struct window {
     offset view, cur;
     buffer *buff;
 
-    colors cl;
+    win_colors cl;
 
     int flags;
     int last_pos; // for cursor vertical movement features

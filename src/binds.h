@@ -61,6 +61,7 @@ ubind TOGGLE_BINDINGS[] = {
     { 0, "c", { clear_input_buffer_and_move } }, // exit this continuation
     { 0, "l", { current_window_toggle_lines } }, // toggle line numbering
     { 0, "m", { current_window_toggle_marks } }, // toggle long line marks
+    // wrap lines
     { 0, NULL, { NULL } },
 };
 
@@ -71,7 +72,7 @@ ubind CONTROL_BINDINGS[] = { // 'c' in MOVE or Ctrl+
     { 1, "t", { .cont = TOGGLE_BINDINGS } },
     { 0, "c", { clear_input_buffer_and_move } }, // exit this continuation
     { 0, "^c", { clear_input_buffer_and_move } },
-    // toggle wrap lines
+    { 0, "mi", { current_buffer_inverse_cur_color }}, // temp
     { 0, "q", { try_exit } },
     { 0, NULL, { NULL } },
 };

@@ -39,25 +39,32 @@ typedef struct rgb {
 } rgb;
 
 #define RGB(rr, gg, bb) ((rgb) { .r = rr, .g = gg, .b = bb })
+#define RGB_INVERSE(_rgb) ((rgb) { .r = ~((_rgb).r), ~((_rgb).g), ~((_rgb).b)})
 
 typedef struct rgb_pair {
     rgb fg, bg;
 } rgb_pair;
 
 #define RGB_PAIR(r, g, b, r1, g1, b1) ((rgb_pair) { .fg = RGB(r, g, b), .bg = RGB(r1, g1, b1) })
+#define RGB_PAIR_INVERSE(_rgbp) ((rgb_pair) { .fg = RGB_INVERSE((_rgbp).fg), .bg = RGB_INVERSE((_rgbp).bg)})
 
 typedef struct colors {
     rgb_pair gen; // general text
     rgb_pair cur; // cursor/selection
     rgb_pair cur_line; // line with a cursor
-    rgb_pair gen_unfocused; // same as above, but if unfocused
-    rgb_pair cur_unfocused;
-    rgb_pair cur_line_unfocused;
 } colors;
+
+typedef struct win_colors {
+    colors focused;
+    colors unfocused;
+} win_colors;
+
+#define DCHAR_COLORED 1
 
 // I'm not sure if this is efficient
 typedef struct dchar {
     wchar_t wch;
+    int flags;
     rgb_pair color;
     // TODO: underline, bold, italic, etc.
 } dchar;
@@ -82,6 +89,6 @@ typedef struct cbuffer {
     dline *first, *last;
 } cbuffer; 
 
-#define CBUFFER_LIST(cbuff) (&((cbuff)->dlines_count))
+#define CBUFFER_LIST(cbuff) ((list *)&((cbuff)->dlines_count))
 
 #endif

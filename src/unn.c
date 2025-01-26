@@ -54,6 +54,7 @@
         30.01.25: Grid matrix for win movement commands, overlay windows
         31.01.25: Implement some commented about movement commands
         01.02.25: Implement selection
+        02.02.25: Fix window switching, try adding buffer switch helper window
 
     TODO (appropximated):
         * focused/unfocused for colored buffers
@@ -201,25 +202,32 @@ void unn_init() {
     }
 
     // default colors
-    S.colors_default = (colors) {
+    S.colors_default.focused = (colors) {
         .cur = RGB_PAIR(255, 255, 255, 0, 0, 0),
-        .cur_unfocused = RGB_PAIR(200, 200, 200, 55, 55, 55),
         .cur_line = RGB_PAIR(10, 10, 10, 240, 240, 240),
-        .cur_line_unfocused = RGB_PAIR(2, 2, 2, 253, 253, 253),
         .gen = RGB_PAIR(0, 0, 0, 255, 255, 255),
-        .gen_unfocused = RGB_PAIR(2, 2, 2, 253, 253, 253),
-    };
-    
-    S.colors_prompt = (colors) {
-        .cur = RGB_PAIR(255, 255, 230, 0, 0, 25),
-        .cur_unfocused = RGB_PAIR(245, 245, 220, 10, 10, 35),
-        .cur_line = RGB_PAIR(0, 0, 25, 255, 255, 230), // same as gen
-        .cur_line_unfocused = RGB_PAIR(10, 10, 35, 245, 245, 220), // same as gen_unfocused
-        .gen = RGB_PAIR(0, 0, 25, 255, 255, 230),
-        .gen_unfocused = RGB_PAIR(10, 10, 35, 245, 245, 220),
     };
 
-    S.colors_status = S.colors_default.cur;
+    S.colors_default.unfocused = (colors) {
+        .cur = RGB_PAIR(250, 250, 250, 5, 5, 5),
+        .cur_line = RGB_PAIR(5, 5, 5, 245, 245, 245),
+        .gen = RGB_PAIR(5, 5, 5, 250, 250, 250),
+    };
+    
+    S.colors_prompt.focused = (colors) {
+        .cur = RGB_PAIR(255, 255, 230, 0, 0, 25),
+        .cur_line = RGB_PAIR(0, 0, 25, 255, 255, 230), // same as gen
+        .gen = RGB_PAIR(0, 0, 25, 255, 255, 230),
+    };
+
+    S.colors_prompt.focused = (colors) {
+        .cur = RGB_PAIR(250, 250, 225, 5, 5, 30),
+        .cur_line = RGB_PAIR(5, 5, 30, 250, 250, 225), // same as gen
+        .gen = RGB_PAIR(5, 5, 30, 250, 250, 225),
+    };
+
+    S.colors_status = S.colors_default.focused.cur;
+
     // binds
     for(int i = 0; i < sizeof(MOVE_BINDINGS) / sizeof(*MOVE_BINDINGS) - 1; i++) {
         binds_set(S.binds_move, NULL, MOVE_BINDINGS + i);

@@ -436,7 +436,7 @@ void buffer_insert_at_cursor(window *w, wchar_t ch) {
     pthread_mutex_lock(&w->buff->block);
 
     if(flag_is_on(w->buff->flags, BUFFER_COLORED)) {
-        dline_insert(w->cur.dl, (dchar) { .wch = ch, .color = w->cl.gen }, w->cur.pos);
+        dline_insert(w->cur.dl, (dchar) { .wch = ch, .flags = 0 }, w->cur.pos);
     } else {
         line_insert(w->cur.l, ch, w->cur.pos);
     }

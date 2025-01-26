@@ -43,23 +43,13 @@ int digits_count(int number) {
 
 // ugly code >:(
 inline static void draw_window_line(window *w, offset view, 
-                                    offset cur, int y1, int x1, int width, int dc, char is_mark, char is_focused) {
+                                    offset cur, int y1, int x1, int width, int dc, char is_mark, colors cl) {
     int len = (view.l) ? (view.l->len - view.pos) : 0;
 
     char is_curline = view.l == cur.l;
 
-    colors cl = w->cl;
-
-    rgb_pair colcur;
-    rgb_pair colcline;
-
-    if(is_focused) {
-        colcline = cl.cur_line;
-        colcur = cl.cur;
-    } else {
-        colcur = cl.cur_unfocused;
-        colcline = cl.cur_line_unfocused;
-    }
+    rgb_pair colcur = cl.cur;
+    rgb_pair colcline = cl.cur_line;
 
     if(is_curline) {
         ncplane_set_bg_rgb8(S.p, colcline.bg.r, colcline.bg.g, colcline.bg.b);
@@ -174,11 +164,11 @@ void draw_window(window *w) {
     offset cur = w->cur;
     offset view = w->view;
 
-    colors cl = w->cl;
-
     char is_prompt = flag_is_on(w->buff->flags, BUFFER_PROMPT);
     char is_mark = !!flag_is_on(w->flags, WINDOW_LONG_MARKS);
     char is_focused = S.current_window == w;
+
+    colors cl = (is_focused) ? w->cl.focused : w->cl.unfocused;
 
     int dc = 0;
 
@@ -231,7 +221,7 @@ void draw_window(window *w) {
 
     int y = pos.y1;
     for(; y <= pos.y2; y++) {
-        draw_window_line(w, view, cur, y, pos.x1, width, dc, is_mark, is_focused);
+        draw_window_line(w, view, cur, y, pos.x1, width, dc, is_mark, cl);
         if(!view.l->next) break;
         view.l = view.l->next;
     }
@@ -240,7 +230,7 @@ void draw_window(window *w) {
     for(; y <= pos.y2; y++) { // lets finish the empty space
         draw_window_line(w, 
         (offset) { .index = 0, .pos = 0, .l = NULL }, 
-        cur, y, pos.x1, width, dc, is_mark, is_focused);
+        cur, y, pos.x1, width, dc, is_mark, cl);
     }
     
     return;
@@ -346,18 +336,24 @@ inline static void empty_at_yx(int y, int x, int amount, rgb_pair cl) {
     }
 }
 
-inline static void dchar_put_yx(dchar dch, int y, int x) {
+inline static void dchar_put_yx(dchar dch, int y, int x, colors cl) {
     nccell c = { 0 };
 
-    nccell_set_bg_rgb8(&c, dch.color.bg.r, dch.color.bg.g, dch.color.bg.b);
-    nccell_set_fg_rgb8(&c, dch.color.fg.r, dch.color.fg.g, dch.color.fg.b);
+    rgb_pair col = cl.gen;
+
+    if(flag_is_on(dch.flags, DCHAR_COLORED)) {
+        col = dch.color;
+    }
+
+    nccell_set_bg_rgb8(&c, col.bg.r, col.bg.g, col.bg.b);
+    nccell_set_fg_rgb8(&c, col.fg.r, col.fg.g, col.fg.b);
 
     nccell_load_ucs32(S.p, &c, dch.wch);
 
     ncplane_putc_yx(S.p, y, x, &c);
 }
 
-inline static void dline_put_yx(dline *dl, int y, int x) {
+inline static void dline_put_yx(dline *dl, int y, int x, colors cl) {
     if(!dl) return;
 
     ncplane_cursor_move_yx(S.p, y, x);
@@ -365,7 +361,7 @@ inline static void dline_put_yx(dline *dl, int y, int x) {
     dchar *dstr = dl->dstr;
 
     for(int i = 0; i < dl->len; i++) {
-        dchar_put_yx(dstr[i], y, x + i);
+        dchar_put_yx(dstr[i], y, x + i, cl);
     }
 }
 
@@ -377,7 +373,9 @@ void draw_window_colored(window *w) {
 
     if(flag_is_off(b->buff.flags, BUFFER_COLORED)) return; // we don't like drawing you!!
 
-    colors cl = w->cl;
+    char is_focused = (S.current_window == w);
+
+    colors cl = (is_focused) ? w->cl.focused : w->cl.unfocused;
 
     // int height = w->pos.y2 - w->pos.y1 + 1;
     int width = w->pos.x2 - w->pos.x1 + 1;
@@ -391,10 +389,22 @@ void draw_window_colored(window *w) {
     for(; current_line_y <= last_line_y; current_line_y++) {
         if(!current_line) break;
 
-        dline_put_yx(current_line, current_line_y, w->pos.x1);
+        dline_put_yx(current_line, current_line_y, w->pos.x1, cl);
 
         // fill the left space with colored spaces
         empty_at_yx(current_line_y, w->pos.x1 + current_line->len, width - current_line->len, cl.gen);
+
+        if(current_line == w->cur.dl) {
+            if(w->view.pos <= w->cur.pos) {
+                wchar_t ch = (current_line->len) ? (
+                    (w->cur.pos < current_line->len) ? current_line->dstr[w->cur.pos].wch : L' '
+                ) : L' ';
+                dchar_put_yx((dchar) { .wch = ch, 
+                                       .flags = DCHAR_COLORED,
+                                       .color = cl.cur,
+                 }, current_line_y, w->cur.pos, cl);
+            }
+        }
 
         current_line = current_line->next;
     }

@@ -58,8 +58,8 @@ typedef struct state {
     int draw_flags; // flags for draw loop
 
     rgb_pair colors_status;
-    colors colors_default;
-    colors colors_prompt;
+    win_colors colors_default;
+    win_colors colors_prompt;
     
     sem_t draw_request;
     int draw_windows_count, draw_windows_count2; // two queues to not make other thread wait while
