@@ -321,25 +321,16 @@ int draw_status(struct ncplane *p) {
     return 0;
 }
 
-inline static void empty_at_yx(int y, int x, int amount, rgb_pair cl) {
-    nccell c = { 0 };
-
-    nccell_set_bg_rgb8(&c, cl.bg.r, cl.bg.g, cl.bg.b);
-    nccell_set_fg_rgb8(&c, cl.fg.r, cl.fg.g, cl.fg.b);
-
-    nccell_load_ucs32(S.p, &c, L' ');
-
-    int last_x = amount +x;
+inline static void empty_at_yx(int y, int x, int amount) {
+    int last_x = amount + x;
 
     for(; x < last_x; x++) {
-        ncplane_putc_yx(S.p, y, x, &c);
+        ncplane_putwc_yx(S.p, y, x, L' ');
     }
 }
 
-inline static void dchar_put_yx(dchar dch, int y, int x, colors cl) {
+inline static void dchar_put_yx(dchar dch, int y, int x, rgb_pair col) {
     nccell c = { 0 };
-
-    rgb_pair col = cl.gen;
 
     if(flag_is_on(dch.flags, DCHAR_COLORED)) {
         col = dch.color;
@@ -353,15 +344,13 @@ inline static void dchar_put_yx(dchar dch, int y, int x, colors cl) {
     ncplane_putc_yx(S.p, y, x, &c);
 }
 
-inline static void dline_put_yx(dline *dl, int y, int x, colors cl) {
-    if(!dl) return;
+inline static void dstr_put_yx(dchar *dstr, int y, int x, int amount, rgb_pair col) {
+    if(!dstr) return;
 
     ncplane_cursor_move_yx(S.p, y, x);
 
-    dchar *dstr = dl->dstr;
-
-    for(int i = 0; i < dl->len; i++) {
-        dchar_put_yx(dstr[i], y, x + i, cl);
+    for(int i = 0; i < amount; i++) {
+        dchar_put_yx(dstr[i], y, x + i, col);
     }
 }
 
@@ -369,40 +358,107 @@ void draw_window_colored(window *w) {
     if(!w) return;
     if(!w->buff) return;
 
-    cbuffer *b = (cbuffer *)w->buff;
+    cbuffer *cbuff = (cbuffer *)w->buff;
+    buffer *b = &cbuff->buff;
 
-    if(flag_is_off(b->buff.flags, BUFFER_COLORED)) return; // we don't like drawing you!!
+    if(flag_is_off(b->flags, BUFFER_COLORED)) return; // we don't like drawing you!!
 
     char is_focused = (S.current_window == w);
+    char is_numbered = flag_is_on(S.current_window->flags, WINDOW_LINES);
+    char is_marked = !!flag_is_on(S.current_window->flags, WINDOW_LONG_MARKS);
 
     colors cl = (is_focused) ? w->cl.focused : w->cl.unfocused;
 
-    // int height = w->pos.y2 - w->pos.y1 + 1;
+    ncplane_set_bg_rgb8(S.p, cl.gen.bg.r, cl.gen.bg.g, cl.gen.bg.b);
+    ncplane_set_fg_rgb8(S.p, cl.gen.fg.r, cl.gen.fg.g, cl.gen.fg.b);
+
+    int height = w->pos.y2 - w->pos.y1 + 1;
     int width = w->pos.x2 - w->pos.x1 + 1;
+
+    int dc = 0;
+    int left_border = w->pos.x1;
+    int right_border = w->pos.x2;
+
+    if(is_numbered) {
+        dc = digits_count(w->view.index + height + 1);
+        left_border += dc + 1;
+        w->dc = dc;
+    } else {
+        w->dc = 0;
+    }
+
+    if(is_marked) {
+        right_border -= 1;
+    }
 
     int current_line_y = w->pos.y1;
     int last_line_y = w->pos.y2;
 
-    dline *current_line = b->first;
+    dline *current_line = w->view.dl;
+
+    char buff[32] = { 0 };
 
     // draw existing lines
     for(; current_line_y <= last_line_y; current_line_y++) {
         if(!current_line) break;
 
-        dline_put_yx(current_line, current_line_y, w->pos.x1, cl);
+        // print line numbers
+        if(dc) {
+            int indent = dc - snprintf(buff, sizeof(buff) - 1, "%d", w->view.index + 1 + current_line_y - w->pos.y1);
+            empty_at_yx(current_line_y, w->pos.x1, indent);
+            ncplane_putstr_yx(S.p, current_line_y, w->pos.x1 + indent, buff);
+            ncplane_putwc_yx(S.p, current_line_y, w->pos.x1 + dc, L' ');
+            buff[0] = 0;
+        }
 
-        // fill the left space with colored spaces
-        empty_at_yx(current_line_y, w->pos.x1 + current_line->len, width - current_line->len, cl.gen);
+        // print decorated text
+        // with account for right border
+        int line_length = current_line->len - S.current_window->view.pos;
+        int withhold = 0;
+        int to_be_printed = 0;
+        int line_right_border = left_border + line_length;
+
+        if(line_length > 0) {
+            if(line_right_border > right_border) {
+                withhold = line_right_border - right_border;
+                line_right_border -= withhold;
+            }
+
+            to_be_printed = line_length - withhold + 1;
+
+            dstr_put_yx(current_line->dstr + w->view.pos, current_line_y, left_border, to_be_printed,
+                (current_line == w->cur.dl) ? cl.cur_line : cl.gen);
+        }
 
         if(current_line == w->cur.dl) {
+            if(line_right_border < right_border) {
+                ncplane_set_bg_rgb8(S.p, cl.cur_line.bg.r, cl.cur_line.bg.g, cl.cur_line.bg.b);
+                ncplane_set_fg_rgb8(S.p, cl.cur_line.fg.r, cl.cur_line.fg.g, cl.cur_line.fg.b);
+
+                empty_at_yx(current_line_y, left_border + to_be_printed, right_border - to_be_printed);
+
+                ncplane_set_bg_rgb8(S.p, cl.gen.bg.r, cl.gen.bg.g, cl.gen.bg.b);
+                ncplane_set_fg_rgb8(S.p, cl.gen.fg.r, cl.gen.fg.g, cl.gen.fg.b);
+            }
+
             if(w->view.pos <= w->cur.pos) {
                 wchar_t ch = (current_line->len) ? (
                     (w->cur.pos < current_line->len) ? current_line->dstr[w->cur.pos].wch : L' '
                 ) : L' ';
                 dchar_put_yx((dchar) { .wch = ch, 
-                                       .flags = DCHAR_COLORED,
-                                       .color = cl.cur,
-                 }, current_line_y, w->cur.pos, cl);
+                                       .flags = 0,
+                 }, current_line_y, w->cur.pos + left_border - w->view.pos, cl.cur);
+            }
+        } else {
+            if(line_right_border < right_border) {
+                empty_at_yx(current_line_y, left_border + to_be_printed, right_border - to_be_printed);
+            }
+        }
+
+        if(is_marked) {
+            if(withhold) {
+                dchar_put_yx((dchar) { .wch = L'>', .flags = 0 },
+                    current_line_y, w->pos.x2, cl.cur);
             }
         }
 
@@ -411,7 +467,14 @@ void draw_window_colored(window *w) {
 
     // draw empty space
     for(; current_line_y <= last_line_y; current_line_y++) {
-        empty_at_yx(current_line_y, w->pos.x1, width, cl.gen);
+        empty_at_yx(current_line_y, w->pos.x1, width);
+
+        if(dc) {
+            for(int i = 0; i < dc; i++) {
+                ncplane_putwc_yx(S.p, current_line_y, w->pos.x1 + i, L'-');
+            }
+            ncplane_putwc_yx(S.p, current_line_y, w->pos.x1 + dc, L' ');
+        }
     }
 }
 
