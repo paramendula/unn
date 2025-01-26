@@ -63,10 +63,15 @@ typedef struct dchar {
 } dchar;
 
 typedef struct dline {
-    struct dline *prev, *next;
+    union {
+        general_line gl;
+        struct {
+            struct dline *prev, *next;
 
-    int len, cap;
-    dchar *dstr;
+            int len, cap;
+            dchar *dstr;
+        };
+    };
 } dline;
 
 // buffer with colored, decorated text

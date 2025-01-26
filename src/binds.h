@@ -50,6 +50,7 @@ ubind FILE_BINDINGS[] = {
 ubind BUFFER_BINDINGS[] = {
     { 0, "c", { clear_input_buffer_and_move } }, // exit this continuation
     { 0, "n", { current_buffer_switch_new } }, // create new empty buffer, switch window's buffer to the new one
+    { 0, "u", { current_buffer_switch_new_colored }}, // same as n but for colored buffer, probably temp
     { 0, "dd", { current_buffer_destroy } }, // try to destroy current buffer
     { 0, "do", { buffer_other_destroy } }, // try to destroy other buffer, selected from help window
     { 0, "s", { current_buffer_switch_other } }, // switch current window's buffer to the new one, selected from help window

@@ -47,7 +47,7 @@
     !!  some time.
 
     Daily minimum task list (move it somewhere else later):
-        26.01.25: Colored buffer, separate drawing functions for buffers
+        26.01.25: Colored buffer, separate drawing functions for buffers    | DONE (complex, further improv. needed)
         27.01.25: Optimize windows drawing to only draw changed lines
         28.01.25: Small Scheme parser, also something for Lisp Buffer
         29.01.25: Line wrapping, make colored buffers default
@@ -56,6 +56,13 @@
         01.02.25: Implement selection
 
     TODO (appropximated):
+        * focused/unfocused for colored buffers
+        * dline, line <-> wstr interop
+        
+        * make colors focused and unfocsed separate instances of one struct for usability
+
+        * headers hell, is this codebase at least slightly comprehensible for anyone except me??
+
         * add matrix of cells to grid for window switching commands
         make grid more flexible, so that static windows like prompt can be made easily
             * error propagation needs to be implemented with error windows
@@ -135,7 +142,7 @@
 
 pthread_mutex_t log_mutex;
 
-//#define DEBUG 1
+#define DEBUG 1
 
 #ifdef DEBUG
 void logg(char *fmt, ...) {

@@ -30,11 +30,26 @@
 #define BUFFER_PROMPT 1
 #define BUFFER_COLORED 2
 
-typedef struct line {
-    struct line *prev, *next;
-
+typedef struct general_line {
+    union {
+        node n;
+        struct {
+            struct general_line *prev, *next;
+        };
+    };
     int len, cap;
-    wchar_t *str;
+    void *data;
+} general_line;
+
+typedef struct line {
+    union {
+        general_line gl;
+        struct {
+            struct line *prev, *next;
+            int len, cap;
+            wchar_t *str;
+        };
+    };
 } line;
 
 typedef struct buffer {

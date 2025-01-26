@@ -193,6 +193,9 @@ void buffer_erase_at_cursor() {
 
 void current_buffer_switch_new() {
     buffer *nb = buffer_empty(L"*empty*");
+
+    nb->draw = (draw_func)draw_window;
+
     blist_insert(S.blist, nb);
 
     S.current_window->buff = nb;
@@ -204,6 +207,25 @@ void current_buffer_switch_new() {
     S.current_window->view = S.current_window->cur;
 
     nb->current_window = S.current_window;
+    
+    order_draw_window(S.current_window);
+    order_draw_status();                // not optimal, locking mutex twice in a row
+}
+
+void current_buffer_switch_new_colored() {
+    cbuffer *nb = cbuffer_empty(NULL);
+
+    blist_insert(S.blist, (buffer*)nb);
+
+    S.current_window->buff = (buffer *)nb;
+    S.current_window->cur = (offset) {
+        .index = 0,
+        .dl = nb->first,
+        .pos = 0,
+    };
+    S.current_window->view = S.current_window->cur;
+
+    nb->buff.current_window = S.current_window;
     
     order_draw_window(S.current_window);
     order_draw_status();                // not optimal, locking mutex twice in a row

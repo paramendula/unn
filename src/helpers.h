@@ -29,6 +29,20 @@
 #include "state.h"
 #include "draw.h"
 
+wchar_t *wstr_copy(wchar_t *str) {
+    if(!str) return NULL;
+    size_t len = wcslen(str);
+    
+    wchar_t *wcs = (wchar_t *)malloc(sizeof(*wcs) * (len + 1));
+
+    if(!wcs) return NULL;
+
+    wcscpy(wcs, str);
+    wcs[len] = 0;
+
+    return wcs;
+}
+
 void mode_move() {
     state_flag_off(FLAG_EDIT);
 
@@ -72,18 +86,169 @@ inline static window *window_empty(wchar_t *buff_name) {
     return window_with_buffer(buffer_empty(buff_name));
 }
 
-wchar_t *wstr_copy(wchar_t *str) {
-    if(!str) return NULL;
-    size_t len = wcslen(str);
-    
-    wchar_t *wcs = (wchar_t *)malloc(sizeof(*wcs) * (len + 1));
+// cap >= 1
+dline *dline_empty(int cap) {
+    dline *dl = (dline *)malloc(sizeof(*dl));
 
-    if(!wcs) return NULL;
+    if(!dl) return NULL;
 
-    wcscpy(wcs, str);
-    wcs[len] = 0;
+    dchar *dstr = (dchar *)malloc(sizeof(*dstr) * cap);
 
-    return wcs;
+    if(!dstr) {
+        free(dl);
+        return NULL;
+    }
+
+    *dl = (dline) {
+        .prev = NULL,
+        .next = NULL,
+        .len = 0,
+        .cap = cap,
+        .dstr = dstr,
+    };
+
+    return dl;
+}
+
+void dline_free(dline *dl) {
+    free(dl->dstr);
+    free(dl);
+}
+
+inline static int _dline_check(dline *dl, int amount) {
+    if((dl->len + amount) <= dl->cap) return 0;
+
+    int new_cap = dl->cap * 2;
+    while((dl->len + amount) > new_cap) new_cap *= 2;
+
+    dchar *dstr = (dchar *)realloc(dl->dstr, new_cap * sizeof(*dstr));
+
+    if(!dstr) return -1;
+
+    dl->cap = new_cap;
+    dl->dstr = dstr;
+
+    return 0;
+}
+
+int dline_insert(dline *dl, dchar ch, int index) {
+    if(!dl) return -1;
+    if(_dline_check(dl, 1)) return -2;
+
+    int to_move = dl->len - index;
+
+    if(to_move)
+        memmove(dl->dstr + index + 1, dl->dstr + index, sizeof(*dl->dstr) * to_move);
+
+    dl->dstr[index] = ch;
+    dl->len++;
+
+    return 0;
+}
+
+int dline_insert_multi(dline *dl, dchar *dbuff, int len, int index) {
+    if(!dl) return -1;
+    if(!dbuff) return -1;
+    if(_dline_check(dl, len)) return -2;
+
+    int to_move = dl->len - index;
+
+    if(to_move)
+        memmove(dl->dstr + index + 1, dl->dstr + index, sizeof(*dl->dstr) * to_move);
+
+    memcpy(dl->dstr + index, dbuff, sizeof(*dbuff) * len);
+
+    dl->len += len;
+
+    return 0;
+}
+
+inline static int dline_append(dline *dl, dchar ch) {
+    return dline_insert(dl, ch, dl->len);
+}
+
+inline static int dline_append_multi(dline *dl, dchar *dchs, int len) {
+    return dline_insert_multi(dl, dchs, dl->len, dl->len);
+}
+
+// TODO: dline, line <-> wstr interop
+
+int dline_remove(dline *dl, int index, dchar *buff) {
+    if(!dl) return -1;
+
+    dchar ch = dl->dstr[index];
+
+    int to_move = sizeof(*dl->dstr) * (dl->len - index - 1);
+
+    if(to_move)
+        memmove(dl->dstr + index, dl->dstr + index + 1, to_move);
+
+    dl->len--;
+
+    if(buff)
+        *buff = ch;
+
+    return 0;
+}
+
+int dline_remove_multi(dline *dl, int index, int amount, dchar *buff) {
+    if(!dl) return -1;
+
+    if(buff) {
+        for(int i = index; i < index + amount; i++) {
+            *buff = dl->dstr[i];
+        }
+    }
+
+    int to_move = sizeof(*dl->dstr) * (dl->len - index - amount);
+
+    if(to_move)
+        memmove(dl->dstr + index, dl->dstr + index + amount, to_move);
+
+    dl->len -= amount;
+
+    return 0;
+}
+
+cbuffer *cbuffer_empty(wchar_t *name) {
+    if(!name) {
+        name = L"*empty*";
+    }
+
+    cbuffer *cbuff = (cbuffer *)calloc(1, sizeof(*cbuff));
+    buffer *b = &(cbuff->buff);
+
+    if(!cbuff) {
+        return NULL;
+    }
+
+    dline *dl = dline_empty(4);
+
+    if(!dl) {
+        free(cbuff);
+        return NULL;
+    }
+
+    wchar_t *name_copy = wstr_copy(name);
+
+    if(!name_copy) {
+        free(cbuff);
+        dline_free(dl);
+        return NULL;
+    }
+
+    // buff
+    b->name = name_copy;
+    b->draw = (draw_func)draw_window_colored;
+    b->flags = BUFFER_COLORED;
+
+    pthread_mutex_init(&(b->block), NULL);
+
+    // cbuff
+    cbuff->dlines_count = 1;
+    cbuff->first = cbuff->last = dl;
+
+    return cbuff;
 }
 
 inline static int _line_check(line *l, int amount) {
@@ -270,7 +435,12 @@ void cursor_right();
 void buffer_insert_at_cursor(window *w, wchar_t ch) {
     pthread_mutex_lock(&w->buff->block);
 
-    line_insert(w->cur.l, ch, w->cur.pos);
+    if(flag_is_on(w->buff->flags, BUFFER_COLORED)) {
+        dline_insert(w->cur.dl, (dchar) { .wch = ch, .color = w->cl.gen }, w->cur.pos);
+    } else {
+        line_insert(w->cur.l, ch, w->cur.pos);
+    }
+
     cursor_right();
 
     pthread_mutex_unlock(&w->buff->block);
@@ -463,6 +633,8 @@ void prompt_cb_file_open(buffer *b) {
 
     good: // ***
 
+    nb->draw = (draw_func)draw_window;
+
     blist_insert(S.blist, nb);
 
     w->buff = nb;
@@ -519,15 +691,15 @@ int view_move(window *w, int dy, int dx) {
 
     char changed = 0;
 
-    line *l = view->l;
+    general_line *l = (general_line *)view->gl;
 
     if(!l) return -1;
 
     if(dy) {
-        line *initial_line = l;
+        general_line *initial_line = l;
         char is_up = (dy < 0);
 
-        line *next = (is_up) ? l->prev : l->next;
+        general_line *next = (is_up) ? l->prev : l->next;
         int new_index = view->index;
 
         while(next && dy) {
@@ -547,7 +719,7 @@ int view_move(window *w, int dy, int dx) {
         if(l != initial_line) {
             changed = 1;
 
-            view->l = l;
+            view->ptr = l;
             view->index = new_index;
         }
     }
@@ -595,7 +767,7 @@ int adjust_view_for_cursor(window *w) {
     int view_dy = 0;
 
     if(top_line > cidx) {  // move to the line if it is above or below
-        w->view.l = w->cur.l;
+        w->view.ptr = w->cur.ptr;
         w->view.index = cidx;
     } else if(bottom_line < cidx) {
         view_dy = cidx - bottom_line;
@@ -629,15 +801,15 @@ int cursor_move(window *w, int dy, int dx, char no_view) {
 
     char changed = 0;
 
-    line *l = cur->l;
+    general_line *l = cur->gl;
 
     if(!l) return -1;
 
     if(dy) { // if we move vertically
-        line *initial_line = l;
+        general_line *initial_line = l;
         char is_up = (dy < 0); // are we going up or down?
 
-        line *next = (is_up) ? l->prev : l->next;
+        general_line *next = (is_up) ? l->prev : l->next;
         int new_index = cur->index;
 
         while(next && dy) { // get to the line or to the nearest one (before NULL)
@@ -657,7 +829,7 @@ int cursor_move(window *w, int dy, int dx, char no_view) {
         if(l != initial_line) { // if we really have moved
             changed = 1;
 
-            cur->l = l;
+            cur->gl = l;
             cur->index = new_index;
 
             if(w->last_pos <= l->len) {

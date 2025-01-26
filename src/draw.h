@@ -331,35 +331,78 @@ int draw_status(struct ncplane *p) {
     return 0;
 }
 
+inline static void empty_at_yx(int y, int x, int amount, rgb_pair cl) {
+    nccell c = { 0 };
 
-int dline_put_yx(dline *dl, int y, int x) {
-    if(!dl) return -1;
+    nccell_set_bg_rgb8(&c, cl.bg.r, cl.bg.g, cl.bg.b);
+    nccell_set_fg_rgb8(&c, cl.fg.r, cl.fg.g, cl.fg.b);
+
+    nccell_load_ucs32(S.p, &c, L' ');
+
+    int last_x = amount +x;
+
+    for(; x < last_x; x++) {
+        ncplane_putc_yx(S.p, y, x, &c);
+    }
+}
+
+inline static void dchar_put_yx(dchar dch, int y, int x) {
+    nccell c = { 0 };
+
+    nccell_set_bg_rgb8(&c, dch.color.bg.r, dch.color.bg.g, dch.color.bg.b);
+    nccell_set_fg_rgb8(&c, dch.color.fg.r, dch.color.fg.g, dch.color.fg.b);
+
+    nccell_load_ucs32(S.p, &c, dch.wch);
+
+    ncplane_putc_yx(S.p, y, x, &c);
+}
+
+inline static void dline_put_yx(dline *dl, int y, int x) {
+    if(!dl) return;
 
     ncplane_cursor_move_yx(S.p, y, x);
 
     dchar *dstr = dl->dstr;
 
     for(int i = 0; i < dl->len; i++) {
-        dchar dch = dstr[i];
-
-        nccell c = { 0 };
-
-        nccell_set_bg_rgb8(&c, dch.color.bg.r, dch.color.bg.g, dch.color.bg.b);
-        nccell_set_fg_rgb8(&c, dch.color.fg.r, dch.color.fg.g, dch.color.fg.b);
-
-        nccell_load_ucs32(S.p, &c, dch.wch);
-
-        ncplane_putc(S.p, &c);
+        dchar_put_yx(dstr[i], y, x + i);
     }
-
-    return 0;
 }
 
 void draw_window_colored(window *w) {
     if(!w) return;
     if(!w->buff) return;
 
+    cbuffer *b = (cbuffer *)w->buff;
 
+    if(flag_is_off(b->buff.flags, BUFFER_COLORED)) return; // we don't like drawing you!!
+
+    colors cl = w->cl;
+
+    // int height = w->pos.y2 - w->pos.y1 + 1;
+    int width = w->pos.x2 - w->pos.x1 + 1;
+
+    int current_line_y = w->pos.y1;
+    int last_line_y = w->pos.y2;
+
+    dline *current_line = b->first;
+
+    // draw existing lines
+    for(; current_line_y <= last_line_y; current_line_y++) {
+        if(!current_line) break;
+
+        dline_put_yx(current_line, current_line_y, w->pos.x1);
+
+        // fill the left space with colored spaces
+        empty_at_yx(current_line_y, w->pos.x1 + current_line->len, width - current_line->len, cl.gen);
+
+        current_line = current_line->next;
+    }
+
+    // draw empty space
+    for(; current_line_y <= last_line_y; current_line_y++) {
+        empty_at_yx(current_line_y, w->pos.x1, width, cl.gen);
+    }
 }
 
 #endif
