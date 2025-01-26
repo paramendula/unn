@@ -23,5 +23,6 @@
 
 typedef void(*callback)(void*);
 typedef void(*free_func)(void*);
+typedef void (*draw_func)(void *);
 
 #endif

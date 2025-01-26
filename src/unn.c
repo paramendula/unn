@@ -22,8 +22,7 @@
 // with high amibitions and far-fetched goals
 
 /*
-    HEADERS(hdr[deps]):
-
+    FILES:
         bind.h - bindings primitive hash map implementation
         binds.h - arrays of default bindings
         buffer.h - UNN's general buffer implementation
@@ -57,7 +56,6 @@
         01.02.25: Implement selection
 
     TODO (appropximated):
-
         * add matrix of cells to grid for window switching commands
         make grid more flexible, so that static windows like prompt can be made easily
             * error propagation needs to be implemented with error windows

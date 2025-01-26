@@ -27,6 +27,7 @@
 #include <sys/stat.h>
 
 #include "state.h"
+#include "draw.h"
 
 void mode_move() {
     state_flag_off(FLAG_EDIT);
@@ -44,6 +45,31 @@ void mode_toggle() {
     state_flag_toggle(FLAG_EDIT);
 
     order_draw_status();
+}
+
+window *window_with_buffer(buffer *buff) {
+    window *win = (window *)calloc(1, sizeof(*win));
+
+    if(!win) return NULL;
+
+    win->buff = buff;
+    win->cur = (offset) {
+        .index = 0,
+        .pos = 0,
+        .l = buff->first,
+    };
+    win->view = win->cur;
+    win->flags = WINDOW_DEFAULT;
+
+    buff->draw = (draw_func)draw_window;
+
+    buff->current_window = win;
+
+    return win;
+}
+
+inline static window *window_empty(wchar_t *buff_name) {
+    return window_with_buffer(buffer_empty(buff_name));
 }
 
 wchar_t *wstr_copy(wchar_t *str) {

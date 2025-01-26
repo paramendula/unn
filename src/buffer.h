@@ -27,6 +27,9 @@
 #include "list.h"
 #include "misc.h"
 
+#define BUFFER_PROMPT 1
+#define BUFFER_COLORED 2
+
 typedef struct line {
     struct line *prev, *next;
 
@@ -36,6 +39,8 @@ typedef struct line {
 
 typedef struct buffer {
     struct buffer *prev, *next;
+
+    draw_func draw;
 
     int lines_count;
     line *first, *last;

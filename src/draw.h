@@ -42,7 +42,7 @@ int digits_count(int number) {
 }
 
 // ugly code >:(
-inline static void draw_window_line(struct ncplane *p, window *w, offset view, 
+inline static void draw_window_line(window *w, offset view, 
                                     offset cur, int y1, int x1, int width, int dc, char is_mark, char is_focused) {
     int len = (view.l) ? (view.l->len - view.pos) : 0;
 
@@ -62,15 +62,15 @@ inline static void draw_window_line(struct ncplane *p, window *w, offset view,
     }
 
     if(is_curline) {
-        ncplane_set_bg_rgb8(p, colcline.bg.r, colcline.bg.g, colcline.bg.b);
-        ncplane_set_fg_rgb8(p, colcline.fg.r, colcline.fg.g, colcline.fg.b);
+        ncplane_set_bg_rgb8(S.p, colcline.bg.r, colcline.bg.g, colcline.bg.b);
+        ncplane_set_fg_rgb8(S.p, colcline.fg.r, colcline.fg.g, colcline.fg.b);
     }
 
     for(int i = x1; i < x1 + width + is_mark; i++) {
-        ncplane_putchar_yx(p, y1, i, ' ');
+        ncplane_putchar_yx(S.p, y1, i, ' ');
     }
 
-    ncplane_cursor_move_yx(p, y1, x1 - ((dc) ? (dc + 1) : 0));
+    ncplane_cursor_move_yx(S.p, y1, x1 - ((dc) ? (dc + 1) : 0));
 
     if(dc) { // if we number lines
         char buff[16] = { 0 };
@@ -88,10 +88,10 @@ inline static void draw_window_line(struct ncplane *p, window *w, offset view,
         int indent = dc - c;
 
         for(int i = 0; i < indent; i++) {
-            ncplane_putchar(p, ' ');
+            ncplane_putchar(S.p, ' ');
         }
-        ncplane_putstr(p, buff);
-        ncplane_putchar(p, ' ');
+        ncplane_putstr(S.p, buff);
+        ncplane_putchar(S.p, ' ');
     }
 
     // empty line
@@ -125,7 +125,7 @@ inline static void draw_window_line(struct ncplane *p, window *w, offset view,
         wcstr[width] = 0;
     }
 
-    ncplane_putwstr(p, wcstr);
+    ncplane_putwstr(S.p, wcstr);
 
     if(is_curline) { // go back
         ncplane_set_bg_rgb8(S.p, cl.gen.bg.r, cl.gen.bg.g, cl.gen.bg.b);
@@ -140,7 +140,7 @@ inline static void draw_window_line(struct ncplane *p, window *w, offset view,
             // L' ' if cursor is at the end, after the last char
             wchar_t ch = (cur.pos < view.l->len) ? cur.l->str[cur.pos] : L' ';
 
-            nccell_load_ucs32(p, &c, ch);
+            nccell_load_ucs32(S.p, &c, ch);
 
             nccell_set_bg_rgb8(&c, colcur.bg.r, colcur.bg.g, colcur.bg.b);
             nccell_set_fg_rgb8(&c, colcur.fg.r, colcur.fg.g, colcur.fg.b);
@@ -167,8 +167,8 @@ inline static void draw_window_line(struct ncplane *p, window *w, offset view,
     }
 }
 
-int draw_window(struct ncplane *p, window *w) {
-    if(!w) return -1;
+void draw_window(window *w) {
+    if(!w) return;
 
     rect pos = w->pos;
     offset cur = w->cur;
@@ -213,7 +213,7 @@ int draw_window(struct ncplane *p, window *w) {
     ncplane_set_bg_rgb8(S.p, cl.gen.bg.r, cl.gen.bg.g, cl.gen.bg.b);
     ncplane_set_fg_rgb8(S.p, cl.gen.fg.r, cl.gen.fg.g, cl.gen.fg.b);
 
-    if(!w->buff) return 0;
+    if(!w->buff) return;
 
     // if prompt window, write the prompt string at the beginning and offset the cursor pos
     if(is_prompt) {
@@ -231,19 +231,19 @@ int draw_window(struct ncplane *p, window *w) {
 
     int y = pos.y1;
     for(; y <= pos.y2; y++) {
-        draw_window_line(p, w, view, cur, y, pos.x1, width, dc, is_mark, is_focused);
+        draw_window_line(w, view, cur, y, pos.x1, width, dc, is_mark, is_focused);
         if(!view.l->next) break;
         view.l = view.l->next;
     }
     y++;
 
     for(; y <= pos.y2; y++) { // lets finish the empty space
-        draw_window_line(p, w, 
+        draw_window_line(w, 
         (offset) { .index = 0, .pos = 0, .l = NULL }, 
         cur, y, pos.x1, width, dc, is_mark, is_focused);
     }
     
-    return 0;
+    return;
 }
 
 int draw_grid(struct ncplane *p, grid *g, char blocking) {
@@ -256,7 +256,13 @@ int draw_grid(struct ncplane *p, grid *g, char blocking) {
             if(pthread_mutex_trylock(&w->buff->block)) continue;
         }
 
-        draw_window(p, w);
+        buffer *b = w->buff;
+        if(b) {
+            draw_func draw = b->draw;
+            if(draw) {
+                draw(w);
+            }
+        }
 
         pthread_mutex_unlock(&w->buff->block);
     }
@@ -323,6 +329,37 @@ int draw_status(struct ncplane *p) {
     ncplane_putwstr_yx(p, y, x, buffer);
 
     return 0;
+}
+
+
+int dline_put_yx(dline *dl, int y, int x) {
+    if(!dl) return -1;
+
+    ncplane_cursor_move_yx(S.p, y, x);
+
+    dchar *dstr = dl->dstr;
+
+    for(int i = 0; i < dl->len; i++) {
+        dchar dch = dstr[i];
+
+        nccell c = { 0 };
+
+        nccell_set_bg_rgb8(&c, dch.color.bg.r, dch.color.bg.g, dch.color.bg.b);
+        nccell_set_fg_rgb8(&c, dch.color.fg.r, dch.color.fg.g, dch.color.fg.b);
+
+        nccell_load_ucs32(S.p, &c, dch.wch);
+
+        ncplane_putc(S.p, &c);
+    }
+
+    return 0;
+}
+
+void draw_window_colored(window *w) {
+    if(!w) return;
+    if(!w->buff) return;
+
+
 }
 
 #endif

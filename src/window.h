@@ -31,8 +31,6 @@
 #include "buffer.h"
 #include "colors.h"
 
-#define BUFFER_PROMPT 1
-
 #define WINDOW_LINES 1
 #define WINDOW_LONG_MARKS 2
 #define WINDOW_DEFAULT (WINDOW_LINES | WINDOW_LONG_MARKS)
@@ -74,29 +72,6 @@ typedef struct grid {
 
     int height, width;
 } grid;
-
-window *window_with_buffer(buffer *buff) {
-    window *win = (window *)calloc(1, sizeof(*win));
-
-    if(!win) return NULL;
-
-    win->buff = buff;
-    win->cur = (offset) {
-        .index = 0,
-        .pos = 0,
-        .l = buff->first,
-    };
-    win->view = win->cur;
-    win->flags = WINDOW_DEFAULT;
-
-    buff->current_window = win;
-
-    return win;
-}
-
-inline static window *window_empty(wchar_t *buff_name) {
-    return window_with_buffer(buffer_empty(buff_name));
-}
 
 int grid_fit(grid *g, rect pos) {
     if(!g) return -1;

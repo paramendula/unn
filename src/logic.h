@@ -160,7 +160,7 @@ void *draw_loop(void*) {
         if(d_a) {
             ncplane_erase(S.p);
             draw_grid(S.p, S.grid, 0);
-            if(S.prompt_window) draw_window(S.p, S.prompt_window);
+            if(S.prompt_window) draw_window(S.prompt_window);
             draw_status(S.p);
 
             notcurses_render(S.nc);
@@ -191,7 +191,15 @@ void *draw_loop(void*) {
                 window *w = S.draw_windows2[i];
                 if(pthread_mutex_trylock(&w->buff->block)) continue;
 
-                draw_window(S.p, w);
+                buffer *b = w->buff;
+                if(b) {
+                    draw_func draw = b->draw;
+                    if(draw) {
+                        draw(w);
+                    }
+                } else {
+                    draw_window(w);
+                }
 
                 pthread_mutex_unlock(&w->buff->block);
             }
