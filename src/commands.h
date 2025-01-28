@@ -150,11 +150,73 @@ char is_view = state_flag_is_on(FLAG_VIEW);
 }
 
 void cursor_leap_word() {
-    
+    if(!S.current_window) return;
+
+    offset *cur = &S.current_window->cur;
+
+    char after = 0;
+
+    while (1) {
+        wchar_t ch = cur_char(cur, flag_is_on(S.current_window->buff->flags, BUFFER_COLORED));
+
+        if(ch == 0) {
+            if(cur->gl->next) {
+                cur->gl = cur->gl->next;
+                cur->pos = 0;
+                cur->index++;
+            } else {
+                break;
+            }
+        }
+
+        if(after) {
+            if(!iswspace(ch)) {
+                break;
+            }
+        } else if(iswspace(ch)) {
+            after = 1;
+        }
+
+        cur->pos++;
+    }
+
+    adjust_view_for_cursor(S.current_window);
+    order_draw_window(S.current_window);
 }
 
 void cursor_leap_word_back() {
-    
+    if(!S.current_window) return;
+
+    offset *cur = &S.current_window->cur;
+
+    char after = 0;
+
+    while (1) {
+        wchar_t ch = cur_char(cur, flag_is_on(S.current_window->buff->flags, BUFFER_COLORED));
+
+        if(ch == 0) {
+            if(cur->gl->prev) {
+                cur->gl = cur->gl->prev;
+                cur->pos = cur->gl->len;
+                cur->index--;
+            } else {
+                break;
+            }
+        }
+
+        if(after) {
+            if(!iswspace(ch)) {
+                break;
+            }
+        } else if(iswspace(ch)) {
+            after = 1;
+        }
+
+        cur->pos--;
+    }
+
+    adjust_view_for_cursor(S.current_window);
+    order_draw_window(S.current_window);
 }
 
 void cursor_fastmode_toggle() {

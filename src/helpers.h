@@ -580,6 +580,16 @@ int copy_file(FILE *from, FILE *to) {
     return 0;
 }
 
+wchar_t cur_char(offset *cur, char type) {
+    if((cur->pos < 0) || (cur->pos > cur->gl->len)) return 0;
+
+    if(type == BUFFER_COLORED) {
+        return cur->dl->dstr[cur->pos].wch;
+    }
+
+    return cur->l->str[cur->pos];
+}
+
 // we assume that prompt buffer's line count is 1
 void prompt_cb_file_open(buffer *b) {
     window *w = (window *)b->userdata;
@@ -809,6 +819,47 @@ int adjust_view_for_cursor(window *w) {
     }
 
     return !(view_x || view_dy);
+}
+
+int cursor_set(window *w, general_line *gl, int y, int x, char no_view) {
+    if(!w) return -1;
+    if(!gl) return -1;
+
+    char changed = 0;
+
+    offset *cur = &w->cur;
+
+    if(cur->gl != gl) {
+        changed = 1;
+    }
+
+    if(cur->index != y) {
+        changed = 1;
+
+        if(y < 0 || y >= w->buff->lines_count) {
+            return -2;
+        }
+    }
+    
+    if(cur->x != y) {
+        changed = 1;
+
+        if (x < 0 || x > gl->len) {
+            return -3;
+        }
+    }
+
+    *cur = (offset) {
+        .gl = gl,
+        .pos = x,
+        .index = y,
+    };
+
+    if(changed && !no_view) {
+        adjust_view_for_cursor(w);
+    }
+
+    return !changed;
 }
 
 // returns not 0 if nothing has changed
