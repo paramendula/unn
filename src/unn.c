@@ -212,7 +212,7 @@ void unn_init() {
         .gen = RGB_PAIR(0, 0, 25, 255, 255, 230),
     };
 
-    S.colors_prompt.focused = (colors) {
+    S.colors_prompt.unfocused = (colors) {
         .cur = RGB_PAIR(250, 250, 225, 5, 5, 30),
         .cur_line = RGB_PAIR(5, 5, 30, 250, 250, 225), // same as gen
         .gen = RGB_PAIR(5, 5, 30, 250, 250, 225),

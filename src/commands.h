@@ -386,6 +386,10 @@ void current_window_switch_other() {
     order_draw_status();
 }
 
+void current_window_switch_prompt() {
+    switch_current_window(S.prompt_window);
+}
+
 void current_window_toggle_lines() {
     if(!S.current_window) return;
     flag_toggle(S.current_window->flags, WINDOW_LINES);
@@ -421,35 +425,53 @@ void new_window_command() {
 
     grid_insert_loc(S.grid, w, loc);
 
-    S.current_window = w;
+    _switch_current_window(w);
 
     on_resize();
 }
 
 void current_window_switch_prev() {
-    if(!S.current_window) return;
-    window *prev = S.current_window->prev;
+    window *prev;
+
+    if(!S.current_window) {
+        prev = (S.prompt_window) ? S.prompt_window : S.grid->last;
+    } else {
+        if(!S.current_window->prev) {
+            if(S.current_window == S.grid->last) {
+                prev = (S.prompt_window) ? S.prompt_window : S.grid->last->prev;
+            } else {
+                prev = S.grid->last;
+            }
+        } else {
+            prev = S.current_window->prev;
+        }
+    }
 
     if(!prev) return;
 
-    S.current_window = prev;
-
-    order_draw_window(S.current_window); // redraw both windows
-    order_draw_window(S.current_window->next); // TODO: order multiple draws sim-ly
-    order_draw_status();
+    switch_current_window(prev);
 }
 
 void current_window_switch_next() {
-    if(!S.current_window) return;
-    window *next = S.current_window->next;
+    window *next;
+
+    if(!S.current_window) {
+        next = (S.grid->first) ? S.grid->first : S.prompt_window;
+    } else {
+        if(!S.current_window->next) {
+            if(S.current_window == S.grid->first) {
+                next = (S.grid->first->next) ? S.grid->first->next : S.prompt_window;
+            } else {
+                next = S.grid->first;
+            }
+        } else {
+            next = S.current_window->next;
+        }
+    }
 
     if(!next) return;
 
-    S.current_window = next;
-
-    order_draw_window(S.current_window); // redraw both windows
-    order_draw_window(S.current_window->prev); // TODO: order multiple draws sim-ly
-    order_draw_status();
+    switch_current_window(next);
 }
 
 void current_window_switch_up() {
@@ -460,12 +482,8 @@ void current_window_switch_up() {
         if(w->loc.y2 >= S.current_window->loc.y2) continue; // possibly use pos instead of loc?
         if((S.current_window->loc.x1 > w->loc.x1)) continue;
 
-        S.other_window = S.current_window;
-        S.current_window = w;
-        
-        order_draw_window(S.other_window);
-        order_draw_window(S.current_window);
-        order_draw_status();
+        switch_current_window(w);
+
         return;
     }
 }
@@ -488,19 +506,29 @@ void current_window_switch_down() {
         if(w->loc.y2 <= S.current_window->loc.y2) continue; // possibly use pos instead of loc?
         if((S.current_window->loc.x1 > w->loc.x1)) continue;
 
-        S.other_window = S.current_window;
-        S.current_window = w;
-
-        order_draw_window(S.other_window);
-        order_draw_window(S.current_window);
-        order_draw_status();
+        switch_current_window(w);
 
         return;
     }
 }
 
 void current_window_destroy() {
+    if(!S.current_window) return;
 
+    window *w = S.current_window;
+
+    window_destroy(w);
+
+    S.current_window = w->next;
+
+    if(!S.current_window)
+        S.current_window = w->prev;
+    if(!S.current_window)
+        S.current_window = S.grid->first;
+    if(!S.current_window)
+        S.current_window = S.prompt_window;
+
+    on_resize();
 }
 
 void window_other_destroy() {

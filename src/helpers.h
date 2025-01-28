@@ -429,6 +429,23 @@ line *read_file_to_lines(FILE *fp, line **last_buffer, int *lc_buffer) {
     return first;
 }
 
+void _switch_current_window(window *new_window) {
+    S.other_window = S.current_window;
+    S.current_window = new_window;
+}
+
+void switch_current_window(window *new_window) {
+    if(!new_window) return;
+    if(S.current_window == new_window) return;
+
+    S.other_window = S.current_window;
+    S.current_window = new_window;
+
+    order_draw_window(S.current_window);
+    order_draw_window(S.other_window);
+    order_draw_status();
+}
+
 void cursor_right();
 
 // this technically needs to be moved to commands.h, but who cares?
@@ -888,13 +905,12 @@ void make_prompt(wchar_t *name, wchar_t *msg, callback prompt_cb) {
         pw = window_with_buffer(pb);
 
         S.prompt_window = pw;
-        S.tmp_window = S.current_window;
-
-        S.current_window = pw;
 
         pw->cl = S.colors_prompt;
 
-        mode_edit();
+        state_flag_on(FLAG_EDIT);
+
+        _switch_current_window(pw);
 
         on_resize();
     } else {
@@ -910,13 +926,9 @@ void make_prompt(wchar_t *name, wchar_t *msg, callback prompt_cb) {
         };
         pw->view = pw->cur;
 
-        S.current_window = pw;
+        state_flag_on(FLAG_EDIT);
 
-        mode_edit();
-
-        order_draw_window(S.tmp_window);
-        order_draw_window(S.prompt_window);
-        order_draw_status();
+        switch_current_window(S.prompt_window);
     }
 }
 

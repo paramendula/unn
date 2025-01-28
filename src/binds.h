@@ -34,6 +34,7 @@ ubind WINDOW_BINDINGS[] = {
     { 0, "s", { current_window_switch_left } }, // switch focus from current window to the nearest left one
     { 0, "k", { current_window_switch_right } }, // switch focus from current window to the nearest right one
     { 0, "m", { current_window_switch_down } }, // switch focus from current window to the nearest below one
+    { 0, "p", { current_window_switch_prompt } }, // switch to the prompt window
     { 0, "dd", { current_window_destroy } }, // try to destroy current window
     { 0, "do", { window_other_destroy } }, // try to destroy other window, selected from help window
     { 0, NULL, { NULL } },
