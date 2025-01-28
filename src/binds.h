@@ -77,9 +77,16 @@ ubind CONTROL_BINDINGS[] = { // 'c' in MOVE or Ctrl+
     { 0, NULL, { NULL } },
 };
 
+ubind LINE_BINDINGS[] = {
+    { 0, "s", { cursor_line_beg } },
+    { 0, "k", { cursor_line_end } },
+    { 0, NULL, { NULL } },
+};
+
 ubind MOVE_BINDINGS[] = {
     { 1, "c", { .cont = CONTROL_BINDINGS } },
     { 1, "^", { .cont = CONTROL_BINDINGS } },
+    { 1, "l", { .cont = LINE_BINDINGS } },
     { 0, "w", { cursor_up } }, // cursor_up
     { 0, "s", { cursor_left } }, // cursor_left
     { 0, "k", { cursor_right } }, // cursor_right

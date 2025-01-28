@@ -64,9 +64,65 @@ typedef struct buffer_lisp {
 // also let's make so that lparse* won't be needlessly free'd and malloc'd
 //      as we'd have to do this a lot if impl written wrongly
 
+// everything is assumed to be a Symbolic Expression: sexp
+// a sexp can only be either a list or an atom
+// a list consists of 1 or more sexps
+// null is a list with 0 elements and is virtual (exists only conceptually, and, in fact, just a null ptr)
+
+// parser logic and context
+
+// Lisp Parse Datum Type
+// not-so-compliant to the ref.
+typedef enum lpdatype {
+    tNull, // no mem, separate for convenience
+    tList,
+    tVector,
+    tNumber,
+    tString,
+    tBoolFalse, // no mem
+    tBoolTrue, // no mem
+    tIdent,
+    tDirective,
+    tComSingle,
+    tComDatum,
+    tComBlock,
+    tApost, // ' no mem
+    tGrave, // ` no mem
+    tComma, // , no mem
+    tSeqComma, // ,@ no mem
+    tLabel, // #n=
+    tLabelRef, // #n#
+} lpdatype;
+
+typedef struct dat_str {
+    wchar_t *raw;
+    wchar_t *str;
+} dat_str;
+
+// tagged union
+// raw str is the unprocessed copy of the element without the enclosing whitespaces if they exist
+typedef struct datum {
+    lpdatype t;
+    union {
+        wchar_t *raw;
+        // list
+        // vec
+        wchar_t *num;
+        dat_str *str;
+        // ident
+        // dir
+        // comsin
+        // comdat
+        // comblk
+        // lab
+        // labref
+    };
+} datum;
+
 typedef struct lparse {
     int pass;
 } lparse;
+
 
 // state, rfunc and e can't be NULL
 // bad lisp != error; state should handle bad lisp info propagation

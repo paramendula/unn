@@ -97,6 +97,58 @@ void cursor_right() {
     }
 }
 
+void cursor_line_beg() {
+    char is_view = state_flag_is_on(FLAG_VIEW);
+
+    offset *off = &S.current_window->cur;
+
+    if(is_view) {
+        off = &S.current_window->view;
+    }
+
+    int result = 0;
+
+    if(off->pos != 0) {
+        off->pos = 0;
+    } else result = 1;
+
+    S.current_window->last_pos = 0;
+
+    if(!is_view) {
+        adjust_view_for_cursor(S.current_window);
+    }
+    
+    if(!result) { // if something has changed
+        order_draw_window(S.current_window);
+    }
+}
+
+void cursor_line_end() {
+char is_view = state_flag_is_on(FLAG_VIEW);
+
+    offset *off = &S.current_window->cur;
+
+    if(is_view) {
+        off = &S.current_window->view;
+    }
+
+    int result = 0;
+    int len = off->gl->len;
+
+    if(off->pos != len) {
+        off->pos = len;
+        S.current_window->last_pos = len;
+    } else result = 1;
+
+    if(!is_view) {
+        adjust_view_for_cursor(S.current_window);
+    }
+    
+    if(!result) { // if something has changed
+        order_draw_window(S.current_window);
+    }
+}
+
 void cursor_leap_word() {
     
 }
