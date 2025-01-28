@@ -21,6 +21,7 @@
 
 #include "colors.h"
 #include "window.h"
+#include "err.h"
 
 // analyze a file - a sequence of symbolic expressions
 // database of all imported procedures, special forms and macros should exist at any moment
@@ -60,5 +61,42 @@ typedef struct buffer_lisp {
 // make buff's on_destroy cb call b_lisps's on_destroy
 
 // first, primitive lisp parser needed
+// also let's make so that lparse* won't be needlessly free'd and malloc'd
+//      as we'd have to do this a lot if impl written wrongly
+
+typedef struct lparse {
+    int pass;
+} lparse;
+
+// state, rfunc and e can't be NULL
+// bad lisp != error; state should handle bad lisp info propagation
+int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
+    wchar_t ch;
+
+    if(!state)
+        return err_set(e, -1, L"lparse *state is NULL");
+
+    if(!rfunc)
+        return err_set(e, -2, L"read_func rfunc is NULL");
+
+    if(!e)
+        return err_set(e, -3, L"err *e is NULL");
+
+    while (1) {
+        ch = rfunc(data, e);
+
+        if(e->code == ERR_READ_EOF) {
+            e->code = 0;
+        } else {
+            return e->code;
+        }
+
+        // TODO
+    }
+
+    // if we're here, everything is okay
+
+    return 0;
+}
 
 #endif

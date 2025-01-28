@@ -72,6 +72,8 @@ void cursor_left() {
         result = view_move(S.current_window, 0, -times);
     } else {
         result = cursor_move(S.current_window, 0, -times, 0);
+        // if we want to cancel the last pos on an empty line we can just press 's'
+        S.current_window->last_pos = S.current_window->cur.pos;
     }
 
     if(!result) { // if something has changed

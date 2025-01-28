@@ -765,6 +765,7 @@ int adjust_view_for_cursor(window *w) {
 
     int view_x = -1;
     int view_dy = 0;
+    int view_dx = 0;
 
     if(top_line > cidx) {  // move to the line if it is above or below
         w->view.ptr = w->cur.ptr;
@@ -775,8 +776,8 @@ int adjust_view_for_cursor(window *w) {
 
     logg("border: %d; cpos: %d\n", right_border, cpos);
 
-    if(left_border > cpos) { // change the whole view window is cur is in the different section
-        int attempt = cpos - width + 1 - is_markers; // -1 for side markers
+    if(left_border > cpos) { // change the whole view window if cur is in the different section
+        int attempt = cpos - width + 1 + dc + is_markers;
         view_x = (attempt > 0) ? attempt : 0;
     } else if(right_border <= cpos) { // + 1 for side markers
         view_x = cpos;
@@ -786,8 +787,8 @@ int adjust_view_for_cursor(window *w) {
         w->view.x = view_x;
     }
 
-    if(view_dy) {
-        view_move(w, view_dy, 0);
+    if(view_dy || view_dx) {
+        view_move(w, view_dy, view_dx);
     }
 
     return !(view_x || view_dy);

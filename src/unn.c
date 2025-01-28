@@ -46,17 +46,9 @@
     !!  but certainly are going to be fixed after
     !!  some time.
 
-    Daily minimum task list (move it somewhere else later):
-        26.01.25: Colored buffer, separate drawing functions for buffers    | DONE (complex, further improv. needed)
-        27.01.25: Optimize windows drawing to only draw changed lines
-        28.01.25: Small Scheme parser, also something for Lisp Buffer
-        29.01.25: Line wrapping, make colored buffers default
-        30.01.25: Grid matrix for win movement commands, overlay windows
-        31.01.25: Implement some commented about movement commands
-        01.02.25: Implement selection
-        02.02.25: Fix window switching, try adding buffer switch helper window
-
     TODO (appropximated):
+        * add togglable movement options, such as view adjustment flags, etc.
+
         * focused/unfocused for colored buffers
         * dline, line <-> wstr interop
         

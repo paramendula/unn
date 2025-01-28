@@ -20,9 +20,16 @@
 #define __UNN_MISC_H_
 
 #include <stdlib.h>
+#include <wchar.h>
+
+#include "err.h"
 
 typedef void(*callback)(void*);
 typedef void(*free_func)(void*);
-typedef void(*draw_func)(void *);
+typedef void(*draw_func)(void*);
+
+#define ERR_READ_EOF 1
+
+typedef wchar_t(*read_func)(void*, err*);
 
 #endif

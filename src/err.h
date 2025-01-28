@@ -21,12 +21,15 @@
 
 #include <wchar.h>
 
+// we can't make 'message' a pointer because we'd have to handle
+// it's freeing, and we don't know if it's static or not
+// And we want 'err' to be as simple as possible
 typedef struct err {
     int code;
     wchar_t message[512];
 } err;
 
-int err_set(err *e, int code, const wchar_t *message) {
+inline static int err_set(err *e, int code, const wchar_t *message) {
     if(!e) return code;
 
     e->code = code;
