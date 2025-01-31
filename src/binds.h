@@ -97,8 +97,6 @@ ubind MOVE_BINDINGS[] = {
     // maybe move those to control?
     { 0, "z", { cursor_fastmode_toggle } }, // move 5 units instead of 1
     { 0, "x", { cursor_viewmode_toggle } }, // move view insted of cursor
-    // move to beg of line
-    // move to end of line
     // move to beg of buffer
     // move to end of buffer
     // move to beg of view rect
