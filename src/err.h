@@ -20,6 +20,7 @@
 #define __UNN_ERR_H_
 
 #include <wchar.h>
+#include <stdarg.h>
 
 // we can't make 'message' a pointer because we'd have to handle
 // it's freeing, and we don't know if it's static or not
@@ -29,11 +30,17 @@ typedef struct err {
     wchar_t message[512];
 } err;
 
-inline static int err_set(err *e, int code, const wchar_t *message) {
+const size_t ERRMSG_LEN = 511; // in wchars
+
+inline static int err_set(err *e, int code, const wchar_t *message, ...) {
     if(!e) return code;
 
+    va_list ap; va_start(ap, message);
+
     e->code = code;
-    wcsncpy(e->message, message, sizeof(e->message) / sizeof(*e->message) - sizeof(*e->message));
+    vswprintf(e->message, ERRMSG_LEN, message, ap);
+
+    va_end(ap);
 
     return code;
 }

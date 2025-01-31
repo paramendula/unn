@@ -114,6 +114,10 @@ typedef struct datum {
     struct datum *prev, *next;
 
     lpdatype t;
+
+    // for wchar_t* datums
+    int len, cap;
+
     union {
         dat_list *list;
         dat_vec *vec;
@@ -140,6 +144,10 @@ typedef struct lparse {
     err pe; // parse error
 } lparse;
 
+#define LPH_DONE 1
+
+typedef int (*lp_parse_helper)(datum *, wchar_t ch, err *e, err *pe);
+
 void datum_free(datum *d) {
     if(!d) return;
 
@@ -151,6 +159,29 @@ void lp_free(lparse *state) {
     node_free_nexts((node *)state->first, (free_func)datum_free);
 
     free(state);
+}
+
+int _lp_parse_com_single(datum *d, wchar_t ch, err *e, err *pe) {
+    if(ch == 0 || ch == L'\n') {
+        return LPH_DONE;
+    }
+
+    if(d->len <= d->cap) {
+        int new_cap = (d->cap) ? (d->cap * 2) : 4;
+
+        wchar_t *new_str = (wchar_t *)realloc(d->com_sin, sizeof(*new_str) * new_cap);
+
+        if(!new_str) {
+            return err_set(e, -2, L"parse single comment: not enough memory");
+        }
+
+        d->com_sin = new_str;
+        d->cap = new_cap;
+    }
+
+    d->com_sin[d->len++] = ch;
+
+    return 0;
 }
 
 // state, rfunc and e can't be NULL
@@ -195,6 +226,13 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
 
 
     char flag_hash = 0;
+    char flag_finish_helper = 0;
+
+    lp_parse_helper helper = NULL;
+    datum *helper_datum = NULL;
+
+
+    err *pe = &state->pe;
 
     while (1) {
         ch = rfunc(data, e);
@@ -203,20 +241,69 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
             if(e->code == ERR_READ_EOF) {
                 // done parsing
                 e->code = 0;
-                break;
+                
+                // or not?
+                if(helper) {
+                    // totally not!
+                    flag_finish_helper = 1;
+                    ch = 0;
+                } else {
+                    // yeah, done parsing
+                    break;
+                }
             } else {
                 lp_free(state);
                 return e->code;
             }
+        } else {
+            state->symbol++;
         }
 
-        state->symbol++;
+        if(helper) {
+            int status = helper(helper_datum, ch, e, pe);
+
+            if(status) {
+                if(status == LPH_DONE) {
+                    list_append((list *)state->last, (node *)helper_datum);
+
+                    helper = NULL;
+                    helper_datum = NULL;
+
+                    if(flag_finish_helper) {
+                        // now, we're totally done!
+                        break;
+                    }
+                } else {
+                    datum_free(helper_datum);
+
+                    if(e->code) {
+                        lp_free(state);
+
+                        return e->code;
+                    } else {
+                        // parsing error, no need to free the state
+                        return 0;
+                    }
+                }
+            } else if(flag_finish_helper) {
+                // uh oh, helper func didn't account for EOF!
+                // this is an error actually
+
+                int t = helper_datum->t;
+
+                datum_free(helper_datum);
+                lp_free(state);
+
+                return err_set(e, -4, L"helper function didn't account for EOF [%d]", t);
+            }
+
+            continue;
+        }
 
         // finishing a list or a vector
         if(ch == L')') {
             if(state->stack_size < 2) {
-                err_set(&state->pe, 2, L"unexpected token ')'");
-                lp_free(state);
+                err_set(pe, 2, L"unexpected token ')'");
                 return 0;
             }
 
@@ -231,7 +318,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
             continue;
         }
 
-        // skip whitespace, only if no flags on
+        // skip whitespace, only if no flags are on
         if(!flag_hash) {
             if(ch == L'\n') {
                 state->symbol = 0;
@@ -240,7 +327,6 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
             } else if(iswblank(ch)) {
                 continue;
             }
-
         }
 
         datum *new_datum = (datum *)calloc(1, sizeof(*new_datum));
@@ -283,11 +369,11 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
     //  only parsing errors are possible
 
     // if no error ATM
-    if(!state->pe.code) {
+    if(!pe->code) {
         if(state->stack_size != 1) {
-            err_set(&state->pe, 1, L"unfinished list or excessive '(', stack_size != 1");
+            err_set(pe, 1, L"unfinished list or excessive '(', stack_size != 1");
         } else if(flag_hash) {
-            err_set(&state->pe, 3, L"unfinished '#'-starting datum");
+            err_set(pe, 3, L"unfinished '#'-starting datum");
         }
     }
 
