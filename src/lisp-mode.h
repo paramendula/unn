@@ -146,7 +146,7 @@ typedef struct lparse {
 
 #define LPH_DONE 1
 
-typedef int (*lp_parse_helper)(datum *, wchar_t ch, err *e, err *pe);
+typedef int (*lp_parse_helper)(read_func, void*, datum *, int *, wchar_t ch, err *e, err *pe);
 
 void datum_free(datum *d) {
     if(!d) return;
@@ -161,27 +161,121 @@ void lp_free(lparse *state) {
     free(state);
 }
 
-int _lp_parse_com_single(datum *d, wchar_t ch, err *e, err *pe) {
-    if(ch == 0 || ch == L'\n') {
-        return LPH_DONE;
+// buff may be NULL
+// but in that case, the readen chars will just be skipped
+// amount <= 0 is a NOP
+int _lp_collect_amount(read_func rfunc, void *data, err *e, wchar_t **buff, int amount) {
+    wchar_t *str = (buff && (amount > 0)) ? 
+        ((wchar_t *)malloc(sizeof(*str) * (amount + 1))) : NULL;
+
+    if(buff && (amount > 0) && !str) {
+        return err_set(e, -1, L"lp_collect_amount: not enough memory");
     }
 
-    if(d->len <= d->cap) {
-        int new_cap = (d->cap) ? (d->cap * 2) : 4;
+    int count = 0;
 
-        wchar_t *new_str = (wchar_t *)realloc(d->com_sin, sizeof(*new_str) * new_cap);
-
-        if(!new_str) {
-            return err_set(e, -2, L"parse single comment: not enough memory");
+    for(int i = 0; i < amount; i++) {
+        wchar_t ch = rfunc(data, e);
+        
+        if(e->code) {
+            if(e->code == ERR_READ_EOF) {
+                e->code = 0;
+                break;
+            }
+            if(str) free(str);
+            return -2;
         }
 
-        d->com_sin = new_str;
-        d->cap = new_cap;
+        if(str) str[count] = ch;
+        count++;
     }
 
-    d->com_sin[d->len++] = ch;
+    if(str) str[count] = 0;
 
-    return 0;
+    if(buff) *buff = str;
+
+    return count;
+}
+
+// same as _lp_collect_amount, just amount is inf and breaks when EOF or encounters
+// one of ends
+int _lp_collect_until(read_func rfunc, void *data, err *e, wchar_t **buff,
+                      int *cap_buff, const wchar_t *ends) {
+    wchar_t *str = (buff) ? ((wchar_t *)malloc(sizeof(*str) * 5)) : NULL;
+    int len = 0;
+    int cap = 4;
+    wchar_t *beg;
+    char stop = 0;
+
+    if(buff && !str) {
+        return err_set(e, -1, L"lp_collect_until: not enough memory");
+    }
+
+    while (1) {
+        wchar_t ch = rfunc(data, e);
+        
+        if(e->code) {
+            if(e->code == ERR_READ_EOF) {
+                e->code = 0;
+                break;
+            }
+            if(str) free(str);
+            return -2;
+        }
+
+        beg = ends;
+        while (1) {
+            wchar_t tch = *(beg++);
+            
+            if(tch == 0) break;
+
+            if(ch == tch) {
+                stop = 1;
+            }
+        }
+
+        if(stop) break;
+
+        if(str) {
+            if(len == cap) {
+                cap *= 2;
+                wchar_t *new_str = (wchar_t *)realloc(str, sizeof(*new_str) * (cap + 1));
+
+                if(!new_str) {
+                    free(str);
+                    return err_set(e, -1, L"lp_collect_until: not enough memory, new_str");
+                }
+
+                str = new_str;
+            }
+
+            str[len] = ch;
+        }
+
+        len++;
+    }
+
+    if(str) str[len] = 0;
+
+    if(buff) *buff = str;
+    if(cap_buff) *cap_buff = cap;
+
+    return len;
+}
+
+int _lp_parse_com_single(read_func rfunc, void *data,
+                         datum *d, int *flag, wchar_t ch, err *e, err *pe) {
+    wchar_t *buff = NULL;
+    int cap = 0;
+    int result = _lp_collect_until(rfunc, data, e, &buff, &cap, L"\n");
+
+    if(e->code) return e->code;
+
+    d->com_sin = buff;
+    d->len = result;
+    d->cap = cap;
+
+    return LPH_DONE;
 }
 
 // state, rfunc and e can't be NULL
@@ -230,7 +324,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
 
     lp_parse_helper helper = NULL;
     datum *helper_datum = NULL;
-
+    int helper_flag = 0;
 
     err *pe = &state->pe;
 
@@ -260,7 +354,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
         }
 
         if(helper) {
-            int status = helper(helper_datum, ch, e, pe);
+            int status = helper(rfunc, data, helper_datum, &helper_flag, ch, e, pe);
 
             if(status) {
                 if(status == LPH_DONE) {
@@ -268,6 +362,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
 
                     helper = NULL;
                     helper_datum = NULL;
+                    helper_flag = 0;
 
                     if(flag_finish_helper) {
                         // now, we're totally done!
@@ -313,11 +408,6 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
             continue;
         }
 
-        if(ch == L'#') {
-            flag_hash = 1;
-            continue;
-        }
-
         // skip whitespace, only if no flags are on
         if(!flag_hash) {
             if(ch == L'\n') {
@@ -329,6 +419,11 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
             }
         }
 
+        if(ch == L'#') {
+            flag_hash = 1;
+            continue;
+        }
+
         datum *new_datum = (datum *)calloc(1, sizeof(*new_datum));
 
         if(!new_datum) {
@@ -337,7 +432,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
         }
 
         if(flag_hash) {
-
+            
             continue;
         }
 
@@ -353,6 +448,11 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
 
             new_datum->t = tList;
             new_datum->list = l;
+        } else if(ch == L';') {     // tComSingle
+            helper = _lp_parse_com_single;
+            helper_datum = new_datum;
+
+            new_datum->t = tComSingle;
         }
         
         // at this point, new datum is ready
