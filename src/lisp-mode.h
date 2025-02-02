@@ -21,6 +21,7 @@
 
 #include <wchar.h>
 #include <wctype.h>
+#include <stdarg.h>
 
 #include "colors.h"
 #include "window.h"
@@ -115,10 +116,15 @@ typedef struct datum {
 
     lpdatype t;
 
+    // additional data
+    int line, symbol;
+
     // for wchar_t* datums
     int len, cap;
 
     union {
+        wchar_t *str;
+
         dat_list *list;
         dat_vec *vec;
         wchar_t *num;
@@ -133,6 +139,43 @@ typedef struct datum {
     };
 } datum;
 
+typedef struct perr_node {
+    struct perr_node *prev, *next;
+    union {
+        struct {
+            int code;
+            wchar_t message[512];
+        };
+        err e;
+    };
+    int line, symbol;
+} perr_node;
+
+typedef struct perr_list {
+    int len;
+    perr_node *first, *last;
+} perr_list;
+
+int pe_append(perr_list *pe, int code, int line, int symbol, wchar_t *fmt, ...) {
+    perr_node *n = (perr_node *)malloc(sizeof(*n));
+
+    if(!n) return -1;
+
+    va_list ap; va_start(ap, fmt);
+
+    vswprintf(n->message, ERRMSG_LEN, fmt, ap);
+
+    va_end(ap);
+
+    n->code = code;
+    n->line = line;
+    n->symbol = symbol;
+
+    list_append((list *)pe, (node *)n);
+
+    return 0;
+}
+
 // last list in the stack receives all parsed datums until it encounters a list datum
 // beginning a list datum parsing appends it to the stack
 // finishing a list datum parsing pops it from the stack
@@ -140,13 +183,41 @@ typedef struct lparse {
     int stack_size;
     datum *first, *last; // lists, vectors only
 
-    int line, symbol;
-    err pe; // parse error
+    perr_list pe; // parse errors list
 } lparse;
 
-#define LPH_DONE 1
+// we only use this function for 'raw' datums that are essentialy w-strings
+// allocated block is always cap + 1 sized
+int datum_append(datum *d, wchar_t ch) {
+    if(!d) return -1;
 
-typedef int (*lp_parse_helper)(read_func, void*, datum *, int *, wchar_t ch, err *e, err *pe);
+    if(!d->str) {
+        d->str = (wchar_t *)malloc(sizeof(*d->str) * 5);
+
+        if(!d->str) return -2;
+
+        d->cap = 4;
+        d->len = 1;
+    } else {
+        if(d->len == d->cap) {
+            int new_cap = d->cap * 2;
+
+            wchar_t *new_str = (wchar_t *)realloc(d->str, sizeof(*d->str) * (new_cap + 1));
+
+            if(!new_str) {
+                return -2;
+            }
+
+            d->str = new_str;
+            d->cap = new_cap;
+        }
+    }
+
+    d->str[d->len++] = ch;
+    d->str[d->len] = 0;
+
+    return 0;
+}
 
 void datum_free(datum *d) {
     if(!d) return;
@@ -157,129 +228,18 @@ void lp_free(lparse *state) {
     if(!state) return;
 
     node_free_nexts((node *)state->first, (free_func)datum_free);
+    node_free_nexts((node *)state->pe.first, free);
 
     free(state);
 }
 
-// buff may be NULL
-// but in that case, the readen chars will just be skipped
-// amount <= 0 is a NOP
-int _lp_collect_amount(read_func rfunc, void *data, err *e, wchar_t **buff, int amount) {
-    wchar_t *str = (buff && (amount > 0)) ? 
-        ((wchar_t *)malloc(sizeof(*str) * (amount + 1))) : NULL;
-
-    if(buff && (amount > 0) && !str) {
-        return err_set(e, -1, L"lp_collect_amount: not enough memory");
-    }
-
-    int count = 0;
-
-    for(int i = 0; i < amount; i++) {
-        wchar_t ch = rfunc(data, e);
-        
-        if(e->code) {
-            if(e->code == ERR_READ_EOF) {
-                e->code = 0;
-                break;
-            }
-            if(str) free(str);
-            return -2;
-        }
-
-        if(str) str[count] = ch;
-        count++;
-    }
-
-    if(str) str[count] = 0;
-
-    if(buff) *buff = str;
-
-    return count;
-}
-
-// same as _lp_collect_amount, just amount is inf and breaks when EOF or encounters
-// one of ends
-int _lp_collect_until(read_func rfunc, void *data, err *e, wchar_t **buff,
-                      int *cap_buff, const wchar_t *ends) {
-    wchar_t *str = (buff) ? ((wchar_t *)malloc(sizeof(*str) * 5)) : NULL;
-    int len = 0;
-    int cap = 4;
-    wchar_t *beg;
-    char stop = 0;
-
-    if(buff && !str) {
-        return err_set(e, -1, L"lp_collect_until: not enough memory");
-    }
-
-    while (1) {
-        wchar_t ch = rfunc(data, e);
-        
-        if(e->code) {
-            if(e->code == ERR_READ_EOF) {
-                e->code = 0;
-                break;
-            }
-            if(str) free(str);
-            return -2;
-        }
-
-        beg = ends;
-        while (1) {
-            wchar_t tch = *(beg++);
-            
-            if(tch == 0) break;
-
-            if(ch == tch) {
-                stop = 1;
-            }
-        }
-
-        if(stop) break;
-
-        if(str) {
-            if(len == cap) {
-                cap *= 2;
-                wchar_t *new_str = (wchar_t *)realloc(str, sizeof(*new_str) * (cap + 1));
-
-                if(!new_str) {
-                    free(str);
-                    return err_set(e, -1, L"lp_collect_until: not enough memory, new_str");
-                }
-
-                str = new_str;
-            }
-
-            str[len] = ch;
-        }
-
-        len++;
-    }
-
-    if(str) str[len] = 0;
-
-    if(buff) *buff = str;
-    if(cap_buff) *cap_buff = cap;
-
-    return len;
-}
-
-int _lp_parse_com_single(read_func rfunc, void *data,
-                         datum *d, int *flag, wchar_t ch, err *e, err *pe) {
-    wchar_t *buff = NULL;
-    int cap = 0;
-    int result = _lp_collect_until(rfunc, data, e, &buff, &cap, L"\n");
-
-    if(e->code) return e->code;
-
-    d->com_sin = buff;
-    d->len = result;
-    d->cap = cap;
-
-    return LPH_DONE;
+inline static int is_ident_symbol(wchar_t ch) {
+    return ((ch != ',') && (ch != '`') && (ch != '\'') && iswprint(ch) && !iswspace(ch));
 }
 
 // state, rfunc and e can't be NULL
 // bad lisp != error; state should handle bad lisp info propagation
+// rfunc should infinitely send ERROR_READ_EOF when it's exhausted
 int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
     wchar_t ch;
 
@@ -312,94 +272,150 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
 
     list_append((list *)state, (node *)top_level);
 
-    state->pe.code = 0;
-    memset(&state->pe.message, 0, sizeof(state->pe.message));
+    memset(&state->pe, 0, sizeof(state->pe));
 
-    state->line = 0;
-    state->symbol = 0;
+
+    int line = 0;
+    int symbol = 0;
+
+    perr_list *pe = &state->pe;
 
 
     char flag_hash = 0;
-    char flag_finish_helper = 0;
+    char flag_comma = 0;
+    char flag_com_sin = 0;
+    char flag_directive = 0;
 
-    lp_parse_helper helper = NULL;
-    datum *helper_datum = NULL;
-    int helper_flag = 0;
+    char flag_bool_check = 0;
 
-    err *pe = &state->pe;
+    datum *new_datum = NULL;
+    char datum_done = 0;
+
+    char keep_last = 0;
+    wchar_t last_ch = 0;
 
     while (1) {
-        ch = rfunc(data, e);
+        if(datum_done && new_datum) {
+            list_append((list *)state->last, (node *)new_datum);
+
+            // append to the stack if we're entering a list or a vector
+            if(new_datum->t = tList || new_datum->t == tVector) { 
+                list_append((list *)state, (node *)new_datum);
+            }
+
+            new_datum = NULL;
+            datum_done = 0;
+        }
+
+        if(!keep_last) {
+            last_ch = ch;
+            ch = rfunc(data, e);
+        } else {
+            keep_last = 0;
+        }
 
         if(e->code) {
             if(e->code == ERR_READ_EOF) {
                 // done parsing
                 e->code = 0;
-                
-                // or not?
-                if(helper) {
-                    // totally not!
-                    flag_finish_helper = 1;
+
+                if(new_datum) {
                     ch = 0;
-                } else {
-                    // yeah, done parsing
-                    break;
-                }
+                    // new_datum should be done with in this iteration
+                    // otherwise it's a bug
+                } else break;
             } else {
                 lp_free(state);
                 return e->code;
             }
-        } else {
-            state->symbol++;
         }
+        
+        symbol++;
 
-        if(helper) {
-            int status = helper(rfunc, data, helper_datum, &helper_flag, ch, e, pe);
+        if(flag_hash) {
+            flag_hash = 0;
 
-            if(status) {
-                if(status == LPH_DONE) {
-                    list_append((list *)state->last, (node *)helper_datum);
-
-                    helper = NULL;
-                    helper_datum = NULL;
-                    helper_flag = 0;
-
-                    if(flag_finish_helper) {
-                        // now, we're totally done!
-                        break;
-                    }
-                } else {
-                    datum_free(helper_datum);
-
-                    if(e->code) {
-                        lp_free(state);
-
-                        return e->code;
-                    } else {
-                        // parsing error, no need to free the state
-                        return 0;
-                    }
-                }
-            } else if(flag_finish_helper) {
-                // uh oh, helper func didn't account for EOF!
-                // this is an error actually
-
-                int t = helper_datum->t;
-
-                datum_free(helper_datum);
-                lp_free(state);
-
-                return err_set(e, -4, L"helper function didn't account for EOF [%d]", t);
+            if(ch == 0) {
+                pe_append(pe, -1, line, symbol, L"unexpected char before EOF: '#'");
+            } else if(ch == L'f' || ch == L'F') {
+                new_datum->t = tBoolFalse;
+                flag_bool_check = 1;
+            } else if(ch == L't' || ch == L'T') {
+                new_datum->t = tBoolTrue;
+                flag_bool_check = 1;
+            } else if(ch == L'!') {
+                flag_directive = 1;
             }
 
+            continue;
+        } else if(flag_comma) {
+            if(ch == L'@') {
+                new_datum->t = tSeqComma;
+            } else {
+                new_datum->t = tComma;
+            }
+            
+            datum_done = 1;
+            flag_comma = 0;
+
+            continue;
+        } else if(flag_com_sin) {
+            if(ch == L'\n' || ch == 0) {
+                datum_done = 1;
+                flag_com_sin = 0;
+            } else {
+                if(datum_append(new_datum, ch)) {
+                    datum_free(new_datum);
+                    lp_free(state);
+                    return err_set(e, -2, L"datum_append: not enough memory, com_sin");
+                }
+            }
+
+            continue;
+        } else if(flag_bool_check) {
+            flag_bool_check = 0;
+
+            if(!is_ident_symbol(ch)) {
+                datum_done = 1;
+            } else {
+                free(new_datum);
+                new_datum = NULL;
+
+                pe_append(pe, -3, line, symbol, L"invalid token, starts as bool");
+            }
+        } else if(flag_directive) {
+            if(is_ident_symbol(ch)) {
+                if(datum_append(new_datum, ch)) {
+                    datum_free(new_datum);
+                    lp_free(state);
+                    return err_set(e, -2, L"datum_append: not enough memory, com_sin");
+                }
+            } else {
+                keep_last = 1;
+
+                if(new_datum->len == 0) {
+                    free(new_datum);
+                    pe_append(pe, -1, line, symbol, L"unfinished directive '#!'");
+                } else {
+                    datum_done = 1;
+                }
+            }
+        }
+
+        // skipping whitespace
+        if(ch == L'\n') {
+            symbol = 0;
+            line++;
+            continue;
+        } else if(iswblank(ch)) {
             continue;
         }
 
         // finishing a list or a vector
         if(ch == L')') {
             if(state->stack_size < 2) {
-                err_set(pe, 2, L"unexpected token ')'");
-                return 0;
+                pe_append(pe, -1, line, symbol, L"unexpected token: ')'");
+                continue;
             }
 
             // pop from the stack
@@ -408,36 +424,23 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
             continue;
         }
 
-        // skip whitespace, only if no flags are on
-        if(!flag_hash) {
-            if(ch == L'\n') {
-                state->symbol = 0;
-                state->line++;
-                continue;
-            } else if(iswblank(ch)) {
-                continue;
-            }
-        }
-
-        if(ch == L'#') {
-            flag_hash = 1;
-            continue;
-        }
-
-        datum *new_datum = (datum *)calloc(1, sizeof(*new_datum));
+        new_datum = (datum *)calloc(1, sizeof(*new_datum));
 
         if(!new_datum) {
             lp_free(state);
             return err_set(e, -2, L"new_datum: not enough memory");
         }
 
-        if(flag_hash) {
-            
-            continue;
-        }
+        // TODO: account for all beginnings
 
         if(ch == L'\'') {           // tApost
+            datum_done = 1;
             new_datum->t = tApost;
+        } else if(ch == L'`') {     // tGrave
+            datum_done = 1;
+            new_datum->t = tGrave;
+        } else if(ch == L',') {     // tComma, tSeqComma
+            flag_comma = 1;
         } else if(ch == L'(') {     // tList
             dat_list *l = (dat_list *)calloc(1, sizeof(*l));
 
@@ -446,35 +449,23 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
                 return err_set(e, -2, L"dat_list: not enough memory");
             }
 
+            datum_done = 1;
+
             new_datum->t = tList;
             new_datum->list = l;
         } else if(ch == L';') {     // tComSingle
-            helper = _lp_parse_com_single;
-            helper_datum = new_datum;
-
+            flag_com_sin = 1;
             new_datum->t = tComSingle;
-        }
-        
-        // at this point, new datum is ready
-
-        list_append((list *)state->last, (node *)new_datum);
-
-        // append to the stack if we're entering a list or a vector
-        if(new_datum->t = tList || new_datum->t == tVector) { 
-            list_append((list *)state, (node *)new_datum);
+        } else if(ch == L'#') {
+            flag_hash = 1;
         }
     }
 
     // at this point, function finished successfully, 
     //  only parsing errors are possible
 
-    // if no error ATM
-    if(!pe->code) {
-        if(state->stack_size != 1) {
-            err_set(pe, 1, L"unfinished list or excessive '(', stack_size != 1");
-        } else if(flag_hash) {
-            err_set(pe, 3, L"unfinished '#'-starting datum");
-        }
+    if(state->stack_size != 1) {
+        pe_append(pe, -2, line, symbol, L"unfinished list or excessive '(', stack_size != 1");
     }
 
     return 0;
