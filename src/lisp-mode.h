@@ -80,6 +80,8 @@ typedef struct buffer_lisp {
 typedef enum lpdatype {
     tList,
     tVector,
+    tByteVector,
+    tChar,
     tNumber,
     tString,
     tBoolFalse, // no mem
@@ -108,6 +110,12 @@ typedef struct dat_vec {
     struct datum *first, *last;
 } dat_vec;
 
+// practically, same as dat_list
+typedef struct dat_bvec {
+    int len;
+    struct datum *first, *last;
+} dat_bvec;
+
 // TODO: process "raw" datums(wchar_t *) for possible future usage
 
 // tagged union
@@ -127,6 +135,7 @@ typedef struct datum {
 
         dat_list *list;
         dat_vec *vec;
+        dat_bvec *bvec;
         wchar_t *num;
         wchar_t *str;
         wchar_t *ident;
@@ -284,9 +293,17 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
     char flag_hash = 0;
     char flag_comma = 0;
     char flag_com_sin = 0;
+    char flag_com_blk = 0;
     char flag_directive = 0;
+    char flag_number = 0;
+    char flag_ident = 0;
+    char flag_str = 0;
+    char flag_char = 0;
 
     char flag_bool_check = 0;
+    char flag_bytevector_check = 0;
+
+    char is_bytevector = 0;
 
     datum *new_datum = NULL;
     char datum_done = 0;
@@ -298,8 +315,19 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
         if(datum_done && new_datum) {
             list_append((list *)state->last, (node *)new_datum);
 
+            if(is_bytevector) {
+                // TODO: check if is u8
+                if(new_datum->t != tNumber) {
+                    pe_append(pe, -5, new_datum->line, new_datum->symbol, 
+                        L"not an u8 in a bytevector");
+                }
+            }
+
             // append to the stack if we're entering a list or a vector
             if(new_datum->t = tList || new_datum->t == tVector) { 
+                list_append((list *)state, (node *)new_datum);
+            } else if(new_datum->t == tByteVector) {
+                is_bytevector = 1;
                 list_append((list *)state, (node *)new_datum);
             }
 
@@ -332,23 +360,44 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
         
         symbol++;
 
-        if(flag_hash) {
+        if(flag_hash) { // tokens beginning with '#'
             flag_hash = 0;
 
             if(ch == 0) {
                 pe_append(pe, -1, line, symbol, L"unexpected char before EOF: '#'");
-            } else if(ch == L'f' || ch == L'F') {
+            } else if(ch == L'f' || ch == L'F') { // booleans
                 new_datum->t = tBoolFalse;
                 flag_bool_check = 1;
             } else if(ch == L't' || ch == L'T') {
                 new_datum->t = tBoolTrue;
                 flag_bool_check = 1;
-            } else if(ch == L'!') {
+            } else if(ch == L'!') { // directive
                 flag_directive = 1;
+            } else if(ch == L';') { // datum comment
+                datum_done = 1;
+                new_datum->t = tComDatum;
+            } else if(ch == L'|') { // block comment
+                flag_com_blk = 1;
+            } else if(ch == L'\\') { // tChar
+                flag_char = 1;
+            } else if(ch == L'(') { // tVector
+                dat_vec *l = (dat_vec *)calloc(1, sizeof(*l));
+
+                if(!l) {
+                    lp_free(state);
+                    return err_set(e, -2, L"dat_list: not enough memory");
+                }
+
+                datum_done = 1;
+
+                new_datum->t = tVector;
+                new_datum->vec = l;
+            } else if(ch == L'u') {
+                flag_bytevector_check = 1;
             }
 
             continue;
-        } else if(flag_comma) {
+        } else if(flag_comma) { // ',' or ',@'
             if(ch == L'@') {
                 new_datum->t = tSeqComma;
             } else {
@@ -359,12 +408,12 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
             flag_comma = 0;
 
             continue;
-        } else if(flag_com_sin) {
+        } else if(flag_com_sin) { // a single comment ';'
             if(ch == L'\n' || ch == 0) {
                 datum_done = 1;
                 flag_com_sin = 0;
             } else {
-                if(datum_append(new_datum, ch)) {
+                if(datum_append(new_datum, ch)) { // memory-safe w-string append
                     datum_free(new_datum);
                     lp_free(state);
                     return err_set(e, -2, L"datum_append: not enough memory, com_sin");
@@ -372,7 +421,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
             }
 
             continue;
-        } else if(flag_bool_check) {
+        } else if(flag_bool_check) { // e.g. is it '#f' or '#fabc', which is wrong
             flag_bool_check = 0;
 
             if(!is_ident_symbol(ch)) {
@@ -381,25 +430,82 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
                 free(new_datum);
                 new_datum = NULL;
 
-                pe_append(pe, -3, line, symbol, L"invalid token, starts as bool");
+                pe_append(pe, -3, line, symbol, L"invalid token, starts as bool literal");
             }
+
+            continue;
         } else if(flag_directive) {
             if(is_ident_symbol(ch)) {
                 if(datum_append(new_datum, ch)) {
                     datum_free(new_datum);
                     lp_free(state);
-                    return err_set(e, -2, L"datum_append: not enough memory, com_sin");
+                    return err_set(e, -2, L"datum_append: not enough memory, flag_directive");
                 }
             } else {
                 keep_last = 1;
 
-                if(new_datum->len == 0) {
+                if(new_datum->len == 0) { // empty directive
                     free(new_datum);
                     pe_append(pe, -1, line, symbol, L"unfinished directive '#!'");
                 } else {
                     datum_done = 1;
                 }
             }
+
+            continue;
+        } else if(flag_bytevector_check) {
+            if(flag_bytevector_check == 1) {
+                if(ch == L'8') {
+                    flag_bytevector_check = 2;
+                } else {
+                    flag_bytevector_check = 0;
+
+                    pe_append(pe, -3, line, symbol, L"invalid token");
+                }
+            } else {
+                flag_bytevector_check = 0;
+
+                if(ch == L'(') {
+                    dat_bvec *l = (dat_bvec *)calloc(1, sizeof(*l));
+
+                    if(!l) {
+                        lp_free(state);
+                        return err_set(e, -2, L"dat_bvec: not enough memory");
+                    }
+
+                    datum_done = 1;
+
+                    new_datum->t = tByteVector;
+                    new_datum->bvec = l;
+                } else {
+                    pe_append(pe, -3, line, symbol, L"invalid token");
+                }
+            }
+
+            continue;
+        } else if(flag_ident) {
+            if(is_ident_symbol(ch)) {
+                if(datum_append(new_datum, ch)) {
+                    datum_free(new_datum);
+                    lp_free(state);
+                    return err_set(e, -2, L"datum_append: not enough memory, flag_ident");
+                }
+            } else {
+                keep_last = 1;
+
+                if(new_datum->len == 0) { // empty directive
+                    free(new_datum);
+                    pe_append(pe, -1, line, symbol, L"unfinished directive '#!'");
+                } else {
+                    datum_done = 1;
+                }
+            }
+
+            continue;
+        } else if(flag_number) {
+            // TODO
+            // make simple number parsing
+            // without complex edgecases
         }
 
         // skipping whitespace
@@ -411,7 +517,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
             continue;
         }
 
-        // finishing a list or a vector
+        // ')' means finishing a list or a vector, bytevector
         if(ch == L')') {
             if(state->stack_size < 2) {
                 pe_append(pe, -1, line, symbol, L"unexpected token: ')'");
@@ -421,18 +527,25 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
             // pop from the stack
             list_remove((list *)state, (node *)state->last);
 
+            if(is_bytevector) {
+                is_bytevector = state->last->t == tByteVector;   
+            }
+
             continue;
         }
 
-        new_datum = (datum *)calloc(1, sizeof(*new_datum));
+        // ALLOCATE A NEW DATUM
 
         if(!new_datum) {
+            new_datum = (datum *)calloc(1, sizeof(*new_datum));
+
             lp_free(state);
             return err_set(e, -2, L"new_datum: not enough memory");
         }
 
-        // TODO: account for all beginnings
-
+        // ACTIVATE A FLAG DEPENDING ON THE FIRST CHARACTER OF A TOKEN
+        // OR IF A TOKEN IS TRIVIAL, FINISH THE DATUM   
+        
         if(ch == L'\'') {           // tApost
             datum_done = 1;
             new_datum->t = tApost;
@@ -456,12 +569,20 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
         } else if(ch == L';') {     // tComSingle
             flag_com_sin = 1;
             new_datum->t = tComSingle;
-        } else if(ch == L'#') {
+        } else if(ch == L'#') { // tVector, tBoolFalse|True, tDirective, ...
             flag_hash = 1;
+        } else if(ch == L'"') {     // tString
+            flag_str = 1;
+        } else if(iswdigit(ch)) {   // tNumber
+            flag_number = 1;
+        } else if(is_ident_symbol(ch)) { // tIdent
+            flag_ident = 1;
+        } else { // wow! // tStupid
+            pe_append(pe, -3, line, symbol, L"unknown character [%d]", ch);
         }
     }
 
-    // at this point, function finished successfully, 
+    // at this point, function has finished successfully, 
     //  only parsing errors are possible
 
     if(state->stack_size != 1) {
