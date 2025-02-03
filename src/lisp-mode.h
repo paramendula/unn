@@ -243,7 +243,13 @@ void lp_free(lparse *state) {
 }
 
 inline static int is_ident_symbol(wchar_t ch) {
-    return ((ch != ',') && (ch != '`') && (ch != '\'') && iswprint(ch) && !iswspace(ch));
+    return ((ch != ',') && 
+            (ch != '`') && 
+            (ch != '\'') && 
+            (ch != '(') && 
+            (ch != ')') && 
+            iswprint(ch) && 
+            !iswspace(ch));
 }
 
 // state, rfunc and e can't be NULL
@@ -302,6 +308,10 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
 
     char flag_bool_check = 0;
     char flag_bytevector_check = 0;
+    char flag_sign_check = 0;
+
+    char flag_exactness = 0; // #e #i
+    char flag_base = 0; // #b #o #d #x
 
     char is_bytevector = 0;
 
@@ -502,10 +512,90 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
             }
 
             continue;
+        } else if(flag_sign_check) { // please ignore this part
+            char as_symbol = 0;
+            char as_number = 0;
+
+            // i -> n -> f
+            // n -> a -> n
+            if(!is_ident_symbol(ch)) {
+                if(flag_sign_check == 9) {
+                    as_number = 1;
+                } else {
+                    as_symbol = 1;
+                }
+            } else if(flag_sign_check == 1) {
+                if(ch == L'i') {
+                    flag_sign_check = 2;
+                } else if(ch == L'n') {
+                    flag_sign_check = 4;
+                } else if(iswdigit(ch)) {
+                    as_number = 1;
+                } else {
+                    as_symbol = 1;
+                }
+            } else if(flag_sign_check == 2) {
+                if(ch == L'n') {
+                    flag_sign_check = 3;
+                } else {
+                    as_symbol = 1;
+                }
+            } else if(flag_sign_check == 3) {
+                if(ch == L'f') {
+                    flag_sign_check = 6;
+                } else {
+                    as_symbol = 1;
+                }
+            } else if(flag_sign_check == 4) {
+                if(ch == L'a') {
+                    flag_sign_check = 5;
+                } else {
+                    as_symbol = 1;
+                }
+            } else if(flag_sign_check == 5) {
+                if(ch == L'n') {
+                    flag_sign_check = 6;
+                } else {
+                    as_symbol = 1;
+                }
+            } else if(flag_sign_check == 6) {
+                if(ch == L'.') {
+                    flag_sign_check = 7;
+                } else {
+                    as_symbol = 1;
+                }
+            } else if(flag_sign_check == 7) {
+                if(ch == L'0') {
+                    flag_sign_check = 8;
+                } else {
+                    as_symbol = 1;
+                }
+            } else if(flag_sign_check == 9) {
+                // not ended past (+|-)(inf|nan).0
+                as_symbol = 1;
+            }
+
+            if(as_symbol) {
+                keep_last = 1;
+                flag_sign_check = 0;
+
+                flag_ident = 1; // continue parsing as an identifier
+                new_datum->t = tIdent;
+            } else if(as_number) {
+                keep_last = 1;
+                flag_sign_check = 0;
+
+                flag_number = 1;
+                new_datum->t = tNumber;
+            } else {
+                if(datum_append(new_datum, ch)) {
+                    datum_free(new_datum);
+                    lp_free(state);
+                    return err_set(e, -2, L"datum_append: not enough memory, flag_ident");
+                }
+            }
         } else if(flag_number) {
-            // TODO
-            // make simple number parsing
-            // without complex edgecases
+            
         }
 
         // skipping whitespace
@@ -573,6 +663,14 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
             flag_hash = 1;
         } else if(ch == L'"') {     // tString
             flag_str = 1;
+        } else if(ch == L'+' || ch == L'-') {
+            if(datum_append(new_datum, ch)) {
+                datum_free(new_datum);
+                lp_free(state);
+                return err_set(e, -2, L"datum_append: not enough memory, +, -");
+            }
+
+            flag_sign_check = 1;
         } else if(iswdigit(ch)) {   // tNumber
             flag_number = 1;
         } else if(is_ident_symbol(ch)) { // tIdent
