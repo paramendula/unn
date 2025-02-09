@@ -515,6 +515,13 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
         } else if(flag_bool_check) { // e.g. is it '#f' or '#fabc', which is wrong
             flag_bool_check = 0;
 
+            if(ch == 0) {
+                datum_done = 1;
+                pe_append(pe, -10, 0, line, symbol, L"wrong token, '#' at eof");
+                
+                continue;
+            } 
+
             if(!is_ident_symbol(ch)) {
                 datum_done = 1;
             } else {
@@ -534,9 +541,11 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
                 }
             } else {
                 keep_last = 1;
+                flag_directive = 0;
 
                 if(new_datum->len == 0) { // empty directive
                     free(new_datum);
+                    new_datum = NULL;
                     pe_append(pe, -1, 0, line, symbol, L"unfinished directive '#!'");
                 } else {
                     datum_done = 1;
@@ -545,6 +554,14 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
 
             continue;
         } else if(flag_bytevector_check) {
+            if(ch == 0) {
+                datum_done = 1;
+                flag_bytevector_check = 0;
+                pe_append(pe, -10, 0, line, symbol, L"wrong token");
+                
+                continue;
+            } 
+
             if(flag_bytevector_check == 1) {
                 if(ch == L'8') {
                     flag_bytevector_check = 2;
@@ -582,15 +599,10 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
                     return err_set(e, -2, L"datum_append: not enough memory, flag_ident");
                 }
             } else {
+                flag_ident = 0;
                 keep_last = 1;
-
-                if(new_datum->len == 0) { // empty directive
-                    free(new_datum);
-                    pe_append(pe, -1, 0, line, symbol, L"unfinished directive '#!'");
-                } else {
-                    datum_done = 1;
-                    new_datum->t = tIdent;
-                }
+                datum_done = 1;
+                new_datum->t = tIdent;
             }
 
             continue;
@@ -789,6 +801,15 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
 
             continue;
         } else if(flag_exactness || flag_base) {
+            if(ch == 0) {
+                datum_done = 1;
+                flag_exactness = 0;
+                flag_base = 0;
+                pe_append(pe, -10, 0, line, symbol, L"unfinished number literal or wrong token");
+                
+                continue;
+            } 
+
             if(ch == L'#') {
                 flag_hash = 1;
             } else if(ch == L'+' || ch == L'-') {
@@ -807,6 +828,14 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
 
             continue;
         } else if(flag_label) {
+            if(ch == 0) {
+                datum_done = 1;
+                flag_label = 0;
+                pe_append(pe, -10, 0, line, symbol, L"unfinished flag label, reference or wrong token");
+                
+                continue;
+            } 
+
             if(ch == L'=') {
                 new_datum->t = tLabel;
             } else if(ch == L'#') {
@@ -833,6 +862,14 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
 
             continue;
         } else if(flag_com_blk) {
+            if(ch == 0) {
+                datum_done = 1;
+                flag_com_blk = 0;
+                pe_append(pe, -11, 0, line, symbol, L"unfinished block comment");
+                
+                continue;
+            } 
+
             if(flag_com_blk == 2) {
                 if(ch == L'#') {
                     flag_com_blk = 0;
@@ -860,6 +897,104 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
                 lp_free(state);
                 return err_set(e, -2, L"datum_append: not enough memory, com_blk");
             }
+        } else if(flag_str) {
+            char append = 0;
+            wchar_t nch = ch;
+
+            if(ch == 0) {
+                datum_done = 1;
+                flag_str = 0;
+                pe_append(pe, -10, 0, line, symbol, L"unfinished string literal");
+                
+                continue;
+            } 
+
+            if(flag_str == 2) {
+                flag_str = 1;
+                append = 1;
+
+                if(ch == L'"') {
+                    nch = ch;
+                } else if(ch == L'a') {
+                    nch = 0x7;
+                } else if(ch == L'b') {
+                    nch = 0x8;
+                } else if(ch == L't') {
+                    nch = 0x9;
+                } else if(ch == L'n') {
+                    nch = 0xA;
+                }  else if(ch == L'r') {
+                    nch = 0xD;
+                } else if(ch == L'\\') {
+                    nch = '\\';
+                } else if(ch == L'|') {
+                    nch = 0x7C;
+                } else if(ch == L'x') {
+                    flag_str = 3;
+                } else if(iswspace(ch)) {
+                    flag_str = 4;
+                }
+            } else if(flag_str == 3) {
+                append = 1;
+
+                if(ch == L';') {
+                    flag_str = 1;
+                } else if(!iswxdigit(ch)) {
+                    flag_str = 1;
+                    pe_append(pe, -10, 0, line, symbol, L"not a hex digit inside string literal");
+                }
+            } else if(flag_str == 4) {
+                if(ch == L'\n') {
+                    flag_str = 5;
+                } else if(!iswspace(ch)) {
+                    flag_str = 1;
+                    pe_append(pe, -10, 0, line, symbol, L"wrong line skip inside string literal");
+                }
+            } else if(flag_str == 5) {
+                if(!iswspace(ch) || ch == L'\n') {
+                    append = 1;
+                    flag_str = 1;
+                }
+            } else if(ch == L'"') {
+                datum_done = 1;
+                new_datum->t = tString;
+            } else if(ch == L'\\') {
+                flag_str = 2;
+                append = 1;
+            } else {
+                append = 1;
+            }
+
+            if(append) {
+                if(datum_append(new_datum, nch)) {
+                    datum_free(new_datum);
+                    lp_free(state);
+                    return err_set(e, -2, L"datum_append: not enough memory, flag_str");
+                }
+            }
+        } else if(flag_char) {
+            if(is_ident_symbol(ch) || (ch == L' ' && (new_datum->len == 0))) {
+                if(datum_append(new_datum, ch)) {
+                    datum_free(new_datum);
+                    lp_free(state);
+                    return err_set(e, -2, L"datum_append: not enough memory, flag_char");
+                }
+            } else {
+                flag_char = 0;
+                keep_last = 1;
+
+                if(new_datum->len == 0) { // empty char
+                    free(new_datum);
+                    new_datum = NULL;
+                    pe_append(pe, -1, 0, line, symbol, L"unfinished char #\\");
+                    continue;
+                }
+
+                datum_done = 1;
+                new_datum->t = tChar;
+            }
+
+            continue;
         }
 
         // skipping whitespace
