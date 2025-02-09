@@ -157,6 +157,7 @@ typedef struct perr_node {
         };
         err e;
     };
+    int len;
     int line, symbol;
 } perr_node;
 
@@ -165,7 +166,7 @@ typedef struct perr_list {
     perr_node *first, *last;
 } perr_list;
 
-int pe_append(perr_list *pe, int code, int line, int symbol, wchar_t *fmt, ...) {
+int pe_append(perr_list *pe, int code, int len, int line, int symbol, wchar_t *fmt, ...) {
     perr_node *n = (perr_node *)malloc(sizeof(*n));
 
     if(!n) return -1;
@@ -177,6 +178,7 @@ int pe_append(perr_list *pe, int code, int line, int symbol, wchar_t *fmt, ...) 
     va_end(ap);
 
     n->code = code;
+    n->len = len;
     n->line = line;
     n->symbol = symbol;
 
@@ -305,6 +307,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
     char flag_ident = 0;
     char flag_str = 0;
     char flag_char = 0;
+    char flag_label = 0;
 
     char flag_bool_check = 0;
     char flag_bytevector_check = 0;
@@ -333,7 +336,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
             if(is_bytevector) {
                 // TODO: check if is u8
                 if(new_datum->t != tNumber) {
-                    pe_append(pe, -5, new_datum->line, new_datum->symbol, 
+                    pe_append(pe, -5, 0, new_datum->line, new_datum->symbol, 
                         L"not an u8 in a bytevector");
                 }
             }
@@ -395,14 +398,14 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
                     datum_free(new_datum);
                     new_datum = NULL;
 
-                    pe_append(pe, -6, line, symbol, L"wrong token, began as spec. number");
+                    pe_append(pe, -6, 0, line, symbol, L"wrong token, began as spec. number");
 
                     continue;
                 }
             }
 
             if(ch == 0) {
-                pe_append(pe, -1, line, symbol, L"unexpected char before EOF: '#'");
+                pe_append(pe, -1, 0, line, symbol, L"unexpected char before EOF: '#'");
             } else if(ch == L'f' || ch == L'F') { // booleans
                 new_datum->t = tBoolFalse;
                 flag_bool_check = 1;
@@ -444,8 +447,11 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
                 new_base = 3;
             } else if(ch == L'x' || ch == L'X') {
                 new_base = 4;
+            } else if(iswdigit(ch)) {
+                flag_label = 1;
+                append = 1;
             }
-
+ 
             if(new_exactness) {
                 if(flag_exactness) {
                     flag_exactness = 0;
@@ -453,7 +459,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
                     datum_free(new_datum);
                     new_datum = NULL;
 
-                    pe_append(pe, -6, line, symbol, L"multiple number exactness spec.");
+                    pe_append(pe, -6, 0, line, symbol, L"multiple number exactness spec.");
                 } else {
                     append = 1;
                     flag_exactness = new_exactness;
@@ -465,7 +471,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
                     datum_free(new_datum);
                     new_datum = NULL;
 
-                    pe_append(pe, -6, line, symbol, L"multiple number base spec.");
+                    pe_append(pe, -6, 0, new_datum->len, line, symbol, L"multiple number base spec.");
                 } else {
                     append = 1;
                     flag_base = new_base;
@@ -515,7 +521,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
                 free(new_datum);
                 new_datum = NULL;
 
-                pe_append(pe, -3, line, symbol, L"invalid token, starts as bool literal");
+                pe_append(pe, -3, 0, line, symbol, L"invalid token, starts as bool literal");
             }
 
             continue;
@@ -531,7 +537,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
 
                 if(new_datum->len == 0) { // empty directive
                     free(new_datum);
-                    pe_append(pe, -1, line, symbol, L"unfinished directive '#!'");
+                    pe_append(pe, -1, 0, line, symbol, L"unfinished directive '#!'");
                 } else {
                     datum_done = 1;
                 }
@@ -545,7 +551,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
                 } else {
                     flag_bytevector_check = 0;
 
-                    pe_append(pe, -3, line, symbol, L"invalid token");
+                    pe_append(pe, -3, 0, line, symbol, L"invalid token");
                 }
             } else {
                 flag_bytevector_check = 0;
@@ -563,7 +569,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
                     new_datum->t = tByteVector;
                     new_datum->bvec = l;
                 } else {
-                    pe_append(pe, -3, line, symbol, L"invalid token");
+                    pe_append(pe, -3, 0, line, symbol, L"invalid token");
                 }
             }
 
@@ -580,7 +586,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
 
                 if(new_datum->len == 0) { // empty directive
                     free(new_datum);
-                    pe_append(pe, -1, line, symbol, L"unfinished directive '#!'");
+                    pe_append(pe, -1, 0, line, symbol, L"unfinished directive '#!'");
                 } else {
                     datum_done = 1;
                     new_datum->t = tIdent;
@@ -658,7 +664,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
                 if(flag_number_nosym) {
                     datum_free(new_datum);
                     new_datum = NULL;
-                    pe_append(pe, -6, line, symbol, L"wrong token, began as spec. number");
+                    pe_append(pe, -6, 0, line, symbol, L"wrong token, began as spec. number");
 
                     flag_number_nosym = 0;
 
@@ -689,15 +695,30 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
                 flag_number_dot = 0;
                 flag_number_exp = 0;
                 flag_number_nosym = 0;
+                flag_number_complex = 0;
+                flag_base = 0;
+                flag_exactness = 0;
 
-                if(flag_number_exp) {
-                    if(!iswdigit(new_datum->num[new_datum->len - 1])) {
+                char cpx_good = 0;
+
+                if(flag_number_complex) {
+                    wchar_t lch = new_datum->num[new_datum->len - 1];
+                    if(lch != L'i' && lch != L'I') {
+                        as_symbol = 1;
+                    } else {
+                        cpx_good = 1;
+                    }
+                }
+
+                if(flag_number_exp && cpx_good) {
+                    if(!iswdigit(new_datum->num[new_datum->len - 
+                        ((flag_number_complex) ? 2 : 1)])) {
                         as_symbol = 1;
                     } else {
                         datum_done = 1;
                         new_datum->t = tNumber;
                     }
-                } else {
+                } else if (cpx_good) {
                     datum_done = 1;
                     new_datum->t = tNumber;
                 }
@@ -721,7 +742,21 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
                     flag_number_exp = 1;
                 }
             } else if(ch == L'-' || ch == L'+') {
-
+                if(flag_number_complex) {
+                    as_symbol = 1;
+                } else {
+                    flag_number_dot = 0;
+                    flag_number_exp = 0;
+                    flag_number_complex = 1;
+                    append = 1;
+                }
+            } else if(flag_number_complex && (ch == L'i' || ch == L'I')) {
+                if(flag_number_complex == 2) {
+                    as_symbol = 1;
+                } else {
+                    append = 1;
+                    flag_number_complex = 2;
+                }
             }
 
             if(append) {
@@ -731,14 +766,22 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
                     return err_set(e, -2, L"datum_append: not enough memory, number");
                 }
             } else if(as_symbol) {
-                // TODO:
-                // error datums
-                // or add len to errors
+                if(flag_base || flag_exactness) {
+                    datum_free(new_datum);
+                    new_datum = NULL;
+
+                    pe_append(pe, -6, 0, line, symbol, L"wrong token, began as spec. number");
+
+                    continue;
+                }
 
                 flag_number = 0;
                 flag_number_dot = 0;
                 flag_number_exp = 0;
                 flag_number_nosym = 0;
+                flag_number_complex = 0;
+                flag_base = 0;
+                flag_exactness = 0;
 
                 keep_last = 1;
                 flag_ident = 1;
@@ -759,10 +802,64 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
 
                 datum_free(new_datum);
                 new_datum = NULL;
-                pe_append(pe, -6, line, symbol, L"wrong token, began as spec. number");
+                pe_append(pe, -6, 0, line, symbol, L"wrong token, began as spec. number");
             }
 
             continue;
+        } else if(flag_label) {
+            if(ch == L'=') {
+                new_datum->t = tLabel;
+            } else if(ch == L'#') {
+                new_datum->t = tLabelRef;
+            } else if(!is_ident_symbol(ch) || !iswdigit(ch)) {
+                datum_free(new_datum);
+                new_datum = NULL;
+
+                pe_append(pe, -6, 0, line, symbol, L"wrong token");
+
+                continue;
+            } else {
+                if(datum_append(new_datum, ch)) {
+                    datum_free(new_datum);
+                    lp_free(state);
+                    return err_set(e, -2, L"datum_append: not enough memory, label");
+                }
+
+                continue;
+            }
+
+            flag_label = 0;
+            datum_done = 1;  
+
+            continue;
+        } else if(flag_com_blk) {
+            if(flag_com_blk == 2) {
+                if(ch == L'#') {
+                    flag_com_blk = 0;
+                    datum_done = 1;
+                } else {
+                    keep_last = 1;
+                    if(datum_append(new_datum, L'|')) {
+                        datum_free(new_datum);
+                        lp_free(state);
+                        return err_set(e, -2, L"datum_append: not enough memory, com_blk|");
+                    }
+                }
+
+                continue;
+            }
+
+            if(ch == L'|') {
+                flag_com_blk = 2;
+
+                continue;
+            }
+
+            if(datum_append(new_datum, ch)) {
+                datum_free(new_datum);
+                lp_free(state);
+                return err_set(e, -2, L"datum_append: not enough memory, com_blk");
+            }
         }
 
         // skipping whitespace
@@ -777,7 +874,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
         // ')' means finishing a list or a vector, bytevector
         if(ch == L')') {
             if(state->stack_size < 2) {
-                pe_append(pe, -1, line, symbol, L"unexpected token: ')'");
+                pe_append(pe, -1, 0, line, symbol, L"unexpected token: ')'");
                 continue;
             }
 
@@ -850,7 +947,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
     //  only parsing errors are possible
 
     if(state->stack_size != 1) {
-        pe_append(pe, -2, line, symbol, L"unfinished list or excessive '(', stack_size != 1");
+        pe_append(pe, -2, 0, line, symbol, L"unfinished list or excessive '(', stack_size != 1");
     }
 
     return 0;
