@@ -78,6 +78,9 @@
 
 // Lisp Parse Datum Type
 // not-so-compliant to the ref.
+
+// #define LP_DEBUG 1
+
 typedef enum lpdatype {
     tWrong,
     tList,
@@ -226,12 +229,16 @@ int datum_append(datum *d, wchar_t ch) {
         }
     }
 
+    #ifdef LP_DEBUG
     printf("%ls -> ", d->str);
+    #endif
 
     d->str[d->len++] = ch;
     d->str[d->len] = 0;
 
+    #ifdef LP_DEBUG
     printf("%ls;\n", d->str);
+    #endif
 
     return 0;
 }
@@ -366,12 +373,16 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
             datum_done = 0;
         
             if(!new_datum) {
+                #ifdef LP_DEBUG
                 printf("datum done wrongly\n");
+                #endif
                 continue;
             }
 
+            #ifdef LP_DEBUG
             printf("added %d(%x) to %x\n", new_datum->t, new_datum, state->last);
-            
+            #endif
+
             list_append((list *)state->last->list, (node *)new_datum);
 
             if(is_bytevector) {
@@ -383,9 +394,15 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
             }
 
             // append to the stack if we're entering a list or a vector
-            if((new_datum->t == tList) || (new_datum->t == tVector)) { 
+            if((new_datum->t == tList) || (new_datum->t == tVector)) {
+                #ifdef LP_DEBUG
+                printf("PUSH %d -> %d\n", state->stack_size, state->stack_size + 1);
+                #endif
                 list_append((list *)state, (node *)new_datum);
             } else if(new_datum->t == tByteVector) {
+                #ifdef LP_DEBUG
+                printf("PUSH %d -> %d\n", state->stack_size, state->stack_size + 1);
+                #endif
                 is_bytevector = 1;
                 list_append((list *)state, (node *)new_datum);
             }
@@ -422,7 +439,9 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
             }
         }
 
+        #ifdef LP_DEBUG
         printf("Read char: %d, %lc\n", ch, (iswprint(ch) ? ch : '?'));
+        #endif
         
         symbol++;
 
@@ -572,6 +591,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
 
             if(!is_ident_symbol(ch)) {
                 datum_done = 1;
+                keep_last = 1;
             } else {
                 free(new_datum);
                 new_datum = NULL;
@@ -745,6 +765,8 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
                     return err_set(e, -2, L"datum_append: not enough memory, flag_ident");
                 }
             }
+
+            continue;
         } else if(flag_number) {
             char append = 0;
             char as_symbol = 0;
@@ -922,6 +944,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
 
             if(flag_com_blk == 2) {
                 if(ch == L'#') {
+                    new_datum->t = tComBlock;
                     flag_com_blk = 0;
                     datum_done = 1;
                 } else {
@@ -934,9 +957,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
                 }
 
                 continue;
-            }
-
-            if(ch == L'|') {
+            } else if(ch == L'|') {
                 flag_com_blk = 2;
 
                 continue;
@@ -947,6 +968,8 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
                 lp_deinit(state);
                 return err_set(e, -2, L"datum_append: not enough memory, com_blk");
             }
+
+            continue;
         } else if(flag_str) {
             wchar_t nch = ch;
 
@@ -961,23 +984,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
             if(flag_str == 2) {
                 flag_str = 1;
 
-                if(ch == L'"') {
-                    nch = ch;
-                } else if(ch == L'a') {
-                    nch = 0x7;
-                } else if(ch == L'b') {
-                    nch = 0x8;
-                } else if(ch == L't') {
-                    nch = 0x9;
-                } else if(ch == L'n') {
-                    nch = 0xA;
-                }  else if(ch == L'r') {
-                    nch = 0xD;
-                } else if(ch == L'\\') {
-                    nch = '\\';
-                } else if(ch == L'|') {
-                    nch = 0x7C;
-                } else if(ch == L'x') {
+                if(ch == L'x') {
                     flag_str = 3;
                 } else if(iswspace(ch)) {
                     flag_str = 4;
@@ -1019,7 +1026,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
 
             continue;
         } else if(flag_char) {
-            if(is_ident_symbol(ch) || (ch == L' ' && (new_datum->len == 0))) {
+            if(is_ident_symbol(ch) || ((new_datum->len == 0) && iswprint(ch))) {
                 if(datum_append(new_datum, ch)) {
                     datum_free(new_datum);
                     lp_deinit(state);
@@ -1059,6 +1066,10 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
                 continue;
             }
 
+            #ifdef LP_DEBUG
+            printf("POP %d -> %d\n", state->stack_size, state->stack_size - 1);
+            #endif
+
             // pop from the stack
             list_remove((list *)state, (node *)state->last);
 
@@ -1074,7 +1085,9 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
         if(!new_datum) {
             new_datum = (datum *)calloc(1, sizeof(*new_datum));
 
+            #ifdef LP_DEBUG
             printf("new empty datum\n");
+            #endif
 
             if(!new_datum) {
                 lp_deinit(state);
@@ -1085,7 +1098,9 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
         // ACTIVATE A FLAG DEPENDING ON THE FIRST CHARACTER OF A TOKEN
         // OR IF A TOKEN IS TRIVIAL, FINISH THE DATUM   
 
+        #ifdef LP_DEBUG
         printf("%d == %d = %d; %lc\n", ch, L'\"', ch == L'\"', ch);
+        #endif
         
         if(ch == L'\'') {           // tApost
             datum_done = 1;
@@ -1136,7 +1151,8 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
     //  only parsing errors are possible
 
     if(state->stack_size != 1) {
-        pe_append(pe, -2, 0, line, symbol, L"unfinished list or excessive '(', stack_size != 1");
+        pe_append(pe, -2, 0, line, symbol, L"unfinished list or excessive '(', stack_size != 1 (%d)",
+                  state->stack_size);
     }
 
     return 0;
@@ -1181,6 +1197,7 @@ wchar_t read_func_file(frdata *f, err *e) {
         }
     }
 
+    #ifdef LP_DEBUG
     printf("BUFFER: ");
 
     for(int i = 0; i < (readen + f->offset); i++) {
@@ -1188,6 +1205,7 @@ wchar_t read_func_file(frdata *f, err *e) {
     }
 
     printf("\n");
+    #endif
 
     int ret = mbtowc(&ch, f->buff, sizeof(f->buff));
 

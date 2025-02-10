@@ -7,11 +7,14 @@ void print_space(int space) {
     }
 }
 
+datum *parents[32] = { 0 };
+int depth = 0;
+
 void print_datum(datum *d, int space) {
     if(!d) return;
-    print_space(space);
 
-    printf("[%x %d]\n", d, d->t);
+    // print_space(space);
+    // printf("[%x %d]\n", d, d->t);
 
     print_space(space);
 
@@ -19,12 +22,30 @@ void print_datum(datum *d, int space) {
         case tByteVector:
         case tVector:
         case tList:
-            fputs("list (\n", stdout);
+            fputs("list (", stdout);
 
-            if(d->list)
+            if(d->list) {
+                printf("\n");
+
+                // check if circ ref
+
+                for(int i = 0; i < depth; i++) {
+                    if(parents[i] == d) {
+                        printf("CIRCULAR REFERENCE, BUG\n");
+                        return;
+                    }
+                }
+
+                parents[depth++] = d;
+
                 for(datum *dt = d->list->first; dt != NULL; dt = dt->next) {
                     print_datum(dt, space + 2);
                 }
+
+                depth--;
+            } else {
+                printf("empty");
+            }
 
             print_space(space); fputs(")\n", stdout);
 
@@ -40,7 +61,7 @@ void print_datum(datum *d, int space) {
         case tIdent:
         case tLabel:
         case tLabelRef:
-            printf("[%d] %ls\n", d->t, (d->str) ? d->str : L"[EMPTY]");
+            printf("[%d] ^%ls^\n", d->t, (d->str) ? d->str : L"[EMPTY]");
     }
 }
 
