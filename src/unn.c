@@ -54,7 +54,7 @@
         
         * make colors focused and unfocsed separate instances of one struct for usability
 
-        * headers hell, is this codebase at least slightly comprehensible for anyone except me??
+        * headers hell, is this codebase even at least a bit comprehensible for anyone except me??
 
         * add matrix of cells to grid for window switching commands
         make grid more flexible, so that static windows like prompt can be made easily
@@ -102,9 +102,9 @@
             Parentheses highlighting
             Parentheses jump
             Atoms highlighting
-            Sexp move, delete
+            Sexp move, delete, jump
             Procedures, macros, special forms database
-                for completion features
+                for completion, query features
 
         * Scheme Lisp integration
 
@@ -112,6 +112,7 @@
             Will I be using SemVer? If so, MVP is 1.0.0
             Thus, releases are needed(archives of precompiled binaries + source code)
         - Code refactoring and various fixes are obvious
+        - Most probably, I will begin rewriting UNN from scratch, but in Scheme this time
 
         (for Scheme Lisp)
         coroutines

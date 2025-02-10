@@ -2,6 +2,8 @@
 
 **The project's currently not even in the MVP (Minimum Viable Product) stage, WIP.**
 
+**However, I always make sure that it compiles without any errors or warnings before committing. Most likely, it will run well enough to check the current pre-MVP implementation.**
+
 ![UNN's screenshot](screenshot.png)
 
 ## Description
@@ -17,6 +19,37 @@ Depends on the awesome [notcurses](https://github.com/dankamongmen/notcurses) li
 Licensed entirely under the **GPL-3.0** license.
 
 **UNN** stands both for *Unnamed's Not Named* and *UNN's Not Named* simultaneously! You can also refer to it as *Unnamed*, *Unn*, *UNN*, *Not Named*, *noname*, etc.
+
+## Initial Guide
+
+For those eager ones willing to try out a raw pre-MVP **UNN** (don't get your hopes too up!), here are some tips:
+
+* 99% of the binds are specified in the **binds.h** header
+* **UNN** uses **S, M, W, K** binds for left, down, up, right cursor movement accordingly (for instance, **Vi** and it's descendants use **H, J, K, L**)
+* There are two modes: **Move** and **Edit**. The first one is used for the general movement (in-text; switching window, buffer), control (toggle flags, quit, etc.). The second one is, obviously, used for editing a buffer's contents, and mostly consists of 1-to-1 mappings of keys to according character input into a buffer
+* In the **Move** mode, pressing several keys in a row is called a **key sequence** or a **combination**. Several binds beginning with the same from one to several keys are grouped into **continuations**. Looking into the **binds.h** header helps a lot
+* In the **Edit** mode, pressing two keys simultaneously is handled differently, making it a **sim key sequence** binding call. For example, any two-key combination of the cursor movement keys will switch current mode from **Edit** back to **Move** (SK, WK, SM, ...)
+* Windows and buffers in **UNN** are similar to those in **Emacs**
+
+<details>
+  <summary>Some useful bindings</summary>
+
+  **cfo** (control, file, open) - open a prompt for the user to input a new file 's path to be open, create a new buffer linked to the file, and switch current window's buffer to it
+
+  **cfss** (control, file, save, current) - save current buffer's contents to it's linked file path
+
+  **cfso** (control, file, save, other) - open a prompt for the user to input a new path to be set for the current window's buffer, then save the buffer like the **cfss** bind does
+
+  **ctm** (control, toggle, markers) - toggle line continuation markers, that are placed at the right border of a window to mark long lines (so long that don't fit the current window)
+
+  **ctl** (conrol, toggle, line numbers) - toggle line numbers located at the left border of a window that... number lines!
+
+  **f** (forward) - move cursor to the first character of the next space-delimited word
+
+  **b** (backward) - move cursor to the last character of the previous space-delimited word
+</details>
+
+
 
 ## FAQs
 

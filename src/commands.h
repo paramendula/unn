@@ -464,6 +464,25 @@ void current_window_toggle_marks() {
     order_draw_window(S.current_window);
 }
 
+void current_window_toggle_lisp() {
+    if(!S.current_window) return;
+    if(!S.current_window->buff) return;
+
+    char to_do = !flag_is_on(S.current_window->flags, WINDOW_LISP);
+
+    if(to_do) {
+        // if buffer is not lisp buffer, convert
+        // set buffer overrides
+        // parse lisp, colorize
+    } else {
+        // remove buffer bind overrides
+        // clear all colors
+        // but the buffer is still going to be lisp
+    }
+
+    S.current_window->flags |= WINDOW_LISP;
+}
+
 // split current window in half horizontally
 void new_window_command() {
     logg("New window requested\n");
