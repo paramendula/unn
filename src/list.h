@@ -35,9 +35,15 @@ typedef struct list {
 void node_free_nexts(node *n, free_func f) {
     node *tmp;
 
-    for(; n != NULL; n = tmp) {
+    while(1) {
+        if(!n) break;
+
         tmp = n->next;
+        
         f(n);
+
+        if(tmp) n = tmp;
+        else break;
     }
 }
 

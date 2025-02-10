@@ -19,12 +19,13 @@
 #ifndef __UNN_LISP_MODE_H_
 #define __UNN_LISP_MODE_H_
 
+#include <stdio.h>
 #include <wchar.h>
 #include <wctype.h>
+#include <string.h>
 #include <stdarg.h>
 
-#include "colors.h"
-#include "window.h"
+#include "list.h"
 #include "err.h"
 
 // analyze a file - a sequence of symbolic expressions
@@ -53,13 +54,13 @@
 
 // at first, let's make it so we have to re-parse the whole file after a single change
 
-typedef struct buffer_lisp {
+/*typedef struct buffer_lisp {
     union {
         buffer buff; 
         cbuffer cbuff;
     }; // for convenience 
     // save current Sexp, etc.
-} buffer_lisp;
+} buffer_lisp;*/
 
 // override all moving/editing keybinds
 // make buff's on_destroy cb call b_lisps's on_destroy
@@ -78,6 +79,7 @@ typedef struct buffer_lisp {
 // Lisp Parse Datum Type
 // not-so-compliant to the ref.
 typedef enum lpdatype {
+    tWrong,
     tList,
     tVector,
     tByteVector,
@@ -137,7 +139,7 @@ typedef struct datum {
         dat_vec *vec;
         dat_bvec *bvec;
         wchar_t *num;
-        wchar_t *str;
+        wchar_t *string;
         wchar_t *ident;
         wchar_t *dir;
         wchar_t *com_sin;
@@ -208,7 +210,7 @@ int datum_append(datum *d, wchar_t ch) {
         if(!d->str) return -2;
 
         d->cap = 4;
-        d->len = 1;
+        d->len = 0;
     } else {
         if(d->len == d->cap) {
             int new_cap = d->cap * 2;
@@ -224,24 +226,52 @@ int datum_append(datum *d, wchar_t ch) {
         }
     }
 
+    printf("%ls -> ", d->str);
+
     d->str[d->len++] = ch;
     d->str[d->len] = 0;
+
+    printf("%ls;\n", d->str);
 
     return 0;
 }
 
 void datum_free(datum *d) {
     if(!d) return;
+    
+    // do nothing if tWrong
+    switch(d->t) {
+        case tByteVector:
+        case tVector:
+        case tList:
+            // they all have the same structure
+            if(d->list) {
+                node_free_nexts((node *)((list *)d->list)->first, (free_func)datum_free);
+                free(d->list);
+            }
+            break;
+        
+        case tComBlock:
+        case tChar:
+        case tComDatum:
+        case tComSingle:
+        case tDirective:
+        case tString:
+        case tNumber:
+        case tIdent:
+        case tLabel:
+        case tLabelRef:
+            if(d->str) free(d->str);
+    }
 
+    free(d);
 }
 
-void lp_free(lparse *state) {
+void lp_deinit(lparse *state) {
     if(!state) return;
 
     node_free_nexts((node *)state->first, (free_func)datum_free);
     node_free_nexts((node *)state->pe.first, free);
-
-    free(state);
 }
 
 inline static int is_ident_symbol(wchar_t ch) {
@@ -326,12 +356,23 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
     datum *new_datum = NULL;
     char datum_done = 0;
 
+    char error_flag = 0;
+
     char keep_last = 0;
     wchar_t last_ch = 0;
 
     while (1) {
-        if(datum_done && new_datum) {
-            list_append((list *)state->last, (node *)new_datum);
+        if(datum_done) {
+            datum_done = 0;
+        
+            if(!new_datum) {
+                printf("datum done wrongly\n");
+                continue;
+            }
+
+            printf("added %d(%x) to %x\n", new_datum->t, new_datum, state->last);
+            
+            list_append((list *)state->last->list, (node *)new_datum);
 
             if(is_bytevector) {
                 // TODO: check if is u8
@@ -342,7 +383,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
             }
 
             // append to the stack if we're entering a list or a vector
-            if(new_datum->t = tList || new_datum->t == tVector) { 
+            if((new_datum->t == tList) || (new_datum->t == tVector)) { 
                 list_append((list *)state, (node *)new_datum);
             } else if(new_datum->t == tByteVector) {
                 is_bytevector = 1;
@@ -350,7 +391,6 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
             }
 
             new_datum = NULL;
-            datum_done = 0;
         }
 
         if(!keep_last) {
@@ -360,21 +400,29 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
             keep_last = 0;
         }
 
-        if(e->code) {
-            if(e->code == ERR_READ_EOF) {
+        if(e->code || ch == 0) {
+            if(e->code == ERR_READ_EOF || ch == 0) {
                 // done parsing
                 e->code = 0;
 
                 if(new_datum) {
+                    if(error_flag) {
+                        datum_free(new_datum);
+                        lp_deinit(state);
+                        return err_set(e, -15, L"datum parsing isn't done with EOF: %d", new_datum->t);
+                    }
+                    error_flag = 1;
                     ch = 0;
                     // new_datum should be done with in this iteration
                     // otherwise it's a bug
                 } else break;
             } else {
-                lp_free(state);
+                lp_deinit(state);
                 return e->code;
             }
         }
+
+        printf("Read char: %d, %lc\n", ch, (iswprint(ch) ? ch : '?'));
         
         symbol++;
 
@@ -425,7 +473,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
                 dat_vec *l = (dat_vec *)calloc(1, sizeof(*l));
 
                 if(!l) {
-                    lp_free(state);
+                    lp_deinit(state);
                     return err_set(e, -2, L"dat_list: not enough memory");
                 }
 
@@ -471,7 +519,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
                     datum_free(new_datum);
                     new_datum = NULL;
 
-                    pe_append(pe, -6, 0, new_datum->len, line, symbol, L"multiple number base spec.");
+                    pe_append(pe, -6, 0, line, symbol, L"multiple number base spec.");
                 } else {
                     append = 1;
                     flag_base = new_base;
@@ -481,7 +529,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
             if(append) {
                 if(datum_append(new_datum, L'#') || datum_append(new_datum, ch)) {
                     datum_free(new_datum);
-                    lp_free(state);
+                    lp_deinit(state);
                     return err_set(e, -2, L"datum_append: not enough memory, hash");
                 }
             }
@@ -506,7 +554,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
             } else {
                 if(datum_append(new_datum, ch)) { // memory-safe w-string append
                     datum_free(new_datum);
-                    lp_free(state);
+                    lp_deinit(state);
                     return err_set(e, -2, L"datum_append: not enough memory, com_sin");
                 }
             }
@@ -536,7 +584,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
             if(is_ident_symbol(ch)) {
                 if(datum_append(new_datum, ch)) {
                     datum_free(new_datum);
-                    lp_free(state);
+                    lp_deinit(state);
                     return err_set(e, -2, L"datum_append: not enough memory, flag_directive");
                 }
             } else {
@@ -548,6 +596,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
                     new_datum = NULL;
                     pe_append(pe, -1, 0, line, symbol, L"unfinished directive '#!'");
                 } else {
+                    new_datum->t = tDirective;
                     datum_done = 1;
                 }
             }
@@ -577,7 +626,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
                     dat_bvec *l = (dat_bvec *)calloc(1, sizeof(*l));
 
                     if(!l) {
-                        lp_free(state);
+                        lp_deinit(state);
                         return err_set(e, -2, L"dat_bvec: not enough memory");
                     }
 
@@ -595,7 +644,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
             if(is_ident_symbol(ch)) {
                 if(datum_append(new_datum, ch)) {
                     datum_free(new_datum);
-                    lp_free(state);
+                    lp_deinit(state);
                     return err_set(e, -2, L"datum_append: not enough memory, flag_ident");
                 }
             } else {
@@ -692,7 +741,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
             } else {
                 if(datum_append(new_datum, ch)) {
                     datum_free(new_datum);
-                    lp_free(state);
+                    lp_deinit(state);
                     return err_set(e, -2, L"datum_append: not enough memory, flag_ident");
                 }
             }
@@ -711,18 +760,17 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
                 flag_base = 0;
                 flag_exactness = 0;
 
-                char cpx_good = 0;
+                char cpx_good = 1;
 
                 if(flag_number_complex) {
                     wchar_t lch = new_datum->num[new_datum->len - 1];
                     if(lch != L'i' && lch != L'I') {
                         as_symbol = 1;
-                    } else {
-                        cpx_good = 1;
+                        cpx_good = 0;
                     }
                 }
 
-                if(flag_number_exp && cpx_good) {
+                if(flag_number_exp) {
                     if(!iswdigit(new_datum->num[new_datum->len - 
                         ((flag_number_complex) ? 2 : 1)])) {
                         as_symbol = 1;
@@ -730,9 +778,11 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
                         datum_done = 1;
                         new_datum->t = tNumber;
                     }
-                } else if (cpx_good) {
+                } else if(cpx_good) {
                     datum_done = 1;
                     new_datum->t = tNumber;
+                } else {
+                    as_symbol = 1;
                 }
             } else if(iswdigit(ch)) {
                 append = 1;
@@ -774,7 +824,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
             if(append) {
                 if(datum_append(new_datum, ch)) {
                     datum_free(new_datum);
-                    lp_free(state);
+                    lp_deinit(state);
                     return err_set(e, -2, L"datum_append: not enough memory, number");
                 }
             } else if(as_symbol) {
@@ -850,7 +900,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
             } else {
                 if(datum_append(new_datum, ch)) {
                     datum_free(new_datum);
-                    lp_free(state);
+                    lp_deinit(state);
                     return err_set(e, -2, L"datum_append: not enough memory, label");
                 }
 
@@ -878,7 +928,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
                     keep_last = 1;
                     if(datum_append(new_datum, L'|')) {
                         datum_free(new_datum);
-                        lp_free(state);
+                        lp_deinit(state);
                         return err_set(e, -2, L"datum_append: not enough memory, com_blk|");
                     }
                 }
@@ -894,11 +944,10 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
 
             if(datum_append(new_datum, ch)) {
                 datum_free(new_datum);
-                lp_free(state);
+                lp_deinit(state);
                 return err_set(e, -2, L"datum_append: not enough memory, com_blk");
             }
         } else if(flag_str) {
-            char append = 0;
             wchar_t nch = ch;
 
             if(ch == 0) {
@@ -911,7 +960,6 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
 
             if(flag_str == 2) {
                 flag_str = 1;
-                append = 1;
 
                 if(ch == L'"') {
                     nch = ch;
@@ -935,7 +983,6 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
                     flag_str = 4;
                 }
             } else if(flag_str == 3) {
-                append = 1;
 
                 if(ch == L';') {
                     flag_str = 1;
@@ -952,31 +999,30 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
                 }
             } else if(flag_str == 5) {
                 if(!iswspace(ch) || ch == L'\n') {
-                    append = 1;
                     flag_str = 1;
                 }
             } else if(ch == L'"') {
                 datum_done = 1;
+                flag_str = 0;
                 new_datum->t = tString;
+                
+                continue;
             } else if(ch == L'\\') {
                 flag_str = 2;
-                append = 1;
-            } else {
-                append = 1;
             }
 
-            if(append) {
-                if(datum_append(new_datum, nch)) {
-                    datum_free(new_datum);
-                    lp_free(state);
-                    return err_set(e, -2, L"datum_append: not enough memory, flag_str");
-                }
+            if(datum_append(new_datum, nch)) {
+                datum_free(new_datum);
+                lp_deinit(state);
+                return err_set(e, -2, L"datum_append: not enough memory, flag_str");
             }
+
+            continue;
         } else if(flag_char) {
             if(is_ident_symbol(ch) || (ch == L' ' && (new_datum->len == 0))) {
                 if(datum_append(new_datum, ch)) {
                     datum_free(new_datum);
-                    lp_free(state);
+                    lp_deinit(state);
                     return err_set(e, -2, L"datum_append: not enough memory, flag_char");
                 }
             } else {
@@ -1017,7 +1063,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
             list_remove((list *)state, (node *)state->last);
 
             if(is_bytevector) {
-                is_bytevector = state->last->t == tByteVector;   
+                is_bytevector = (state->last->t == tByteVector);   
             }
 
             continue;
@@ -1028,12 +1074,18 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
         if(!new_datum) {
             new_datum = (datum *)calloc(1, sizeof(*new_datum));
 
-            lp_free(state);
-            return err_set(e, -2, L"new_datum: not enough memory");
+            printf("new empty datum\n");
+
+            if(!new_datum) {
+                lp_deinit(state);
+                return err_set(e, -2, L"new_datum: not enough memory");
+            }
         }
 
         // ACTIVATE A FLAG DEPENDING ON THE FIRST CHARACTER OF A TOKEN
         // OR IF A TOKEN IS TRIVIAL, FINISH THE DATUM   
+
+        printf("%d == %d = %d; %lc\n", ch, L'\"', ch == L'\"', ch);
         
         if(ch == L'\'') {           // tApost
             datum_done = 1;
@@ -1047,7 +1099,7 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
             dat_list *l = (dat_list *)calloc(1, sizeof(*l));
 
             if(!l) {
-                lp_free(state);
+                lp_deinit(state);
                 return err_set(e, -2, L"dat_list: not enough memory");
             }
 
@@ -1059,22 +1111,24 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
             flag_com_sin = 1;
         } else if(ch == L'#') { // tVector, tBoolFalse|True, tDirective, ...
             flag_hash = 1;
-        } else if(ch == L'"') {     // tString
+        } else if(ch == L'\"') {     // tString
             flag_str = 1;
         } else if(ch == L'+' || ch == L'-') {
             if(datum_append(new_datum, ch)) {
                 datum_free(new_datum);
-                lp_free(state);
+                lp_deinit(state);
                 return err_set(e, -2, L"datum_append: not enough memory, +, -");
             }
 
             flag_sign_check = 1;
         } else if(iswdigit(ch)) {   // tNumber
+            keep_last = 1;
             flag_number = 1;
         } else if(is_ident_symbol(ch)) { // tIdent
+            keep_last = 1;
             flag_ident = 1;
         } else { // wow! // tStupid
-            pe_append(pe, -3, line, symbol, L"unknown character [%d]", ch);
+            pe_append(pe, -3, 0, line, symbol, L"unknown character [%d]", ch);
         }
     }
 
@@ -1086,6 +1140,79 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
     }
 
     return 0;
+}
+
+typedef struct frdata {
+    FILE *fp;
+    int offset, bad_flag;
+    char buff[16];
+} frdata;
+
+wchar_t read_func_file(frdata *f, err *e) {
+    if(!f) {
+        err_set(e, -1, L"null file data pointer provided");
+        return 0;
+    }
+
+    if(!f->offset && feof(f->fp)) {
+        err_set(e, ERR_READ_EOF, L"eof");
+        return 0;
+    }
+
+    wchar_t ch = 0;
+    size_t readen = 0;
+
+    if(!feof(f->fp) && !f->buff[0] || f->offset) {
+        readen = fread(f->buff + f->offset, 1, sizeof(f->buff) - f->offset, f->fp);
+
+        if(ferror(f->fp)) {
+            err_set(e, -4, L"ferror");
+            return 0;
+        }
+
+        if(readen == 0) {
+            if(f->bad_flag) {
+                err_set(e, -3, L"wrong multibyte char");
+                return 0;
+            } else if(!f->offset) {
+                err_set(e, ERR_READ_EOF, L"eof");
+                return 0;
+            }
+        }
+    }
+
+    printf("BUFFER: ");
+
+    for(int i = 0; i < (readen + f->offset); i++) {
+        printf("%c", f->buff[i]);
+    }
+
+    printf("\n");
+
+    int ret = mbtowc(&ch, f->buff, sizeof(f->buff));
+
+    if(ret == -1) {
+        if((f->offset + readen) == sizeof(f->buff)) {
+            err_set(e, -3, L"wrong multibyte char");
+            return 0;
+        } else {
+            f->bad_flag = 1;
+            f->offset += readen;
+            return read_func_file(f, e);
+        }
+    } else {
+        f->bad_flag = 0;
+
+        int left = f->offset + readen - ret;
+        if(left) {
+            memmove(f->buff, f->buff + ret, left);
+        } else {
+            f->buff[0] = 0;
+        }
+        f->offset = left;
+    }
+
+    return ch;
 }
 
 #endif
