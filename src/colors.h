@@ -60,6 +60,9 @@ typedef struct win_colors {
 } win_colors;
 
 #define DCHAR_COLORED 1
+#define DCHAR_BOLD 2
+#define DCHAR_ITALIC 4
+#define DCHAR_DIM 8
 
 // I'm not sure if this is efficient
 typedef struct dchar {
@@ -90,5 +93,7 @@ typedef struct cbuffer {
 } cbuffer; 
 
 #define CBUFFER_LIST(cbuff) ((list *)&((cbuff)->dlines_count))
+
+// draw functions are in draw.h
 
 #endif

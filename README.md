@@ -42,7 +42,7 @@ For those eager ones willing to try out a raw pre-MVP **UNN** (don't get your ho
 
   **ctm** (control, toggle, markers) - toggle line continuation markers, that are placed at the right border of a window to mark long lines (so long that don't fit the current window)
 
-  **ctl** (conrol, toggle, line numbers) - toggle line numbers located at the left border of a window that... number lines!
+  **ctn** (conrol, toggle, line numbers) - toggle line numbers located at the left border of a window that... number lines!
 
   **f** (forward) - move cursor to the first character of the next space-delimited word
 

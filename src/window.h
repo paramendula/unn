@@ -34,6 +34,7 @@
 #define WINDOW_LINES 1
 #define WINDOW_LONG_MARKS 2
 #define WINDOW_LISP 4
+#define WINDOW_WRAP 8
 #define WINDOW_DEFAULT (WINDOW_LINES | WINDOW_LONG_MARKS)
 
 typedef struct rect {

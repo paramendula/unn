@@ -52,6 +52,7 @@ typedef struct line {
     };
 } line;
 
+// buffer and window are interconnected, yet they can exist separately
 typedef struct buffer {
     struct buffer *prev, *next;
 
@@ -71,7 +72,7 @@ typedef struct buffer {
     binds *move_binds;
     binds *edit_binds;
 
-    void *current_window;
+    struct window *current_window;
 
     void *userdata;
 } buffer;
@@ -83,6 +84,7 @@ typedef struct int_node {
     int val;
 } int_node;
 
+// this was made for buffer indexing and reusing indexes of deleted buffers
 typedef struct int_list {
     int count;
     int_node *first, *last;

@@ -161,10 +161,13 @@ void cursor_leap_word() {
 
         if(ch == 0) {
             if(cur->gl->next) {
+                ch = L' ';
+
                 cur->gl = cur->gl->next;
-                cur->pos = 0;
+                cur->pos = -1;
                 cur->index++;
             } else {
+                cur->pos = cur->l->len;
                 break;
             }
         }
@@ -194,12 +197,15 @@ void cursor_leap_word_back() {
     while (1) {
         wchar_t ch = cur_char(cur, flag_is_on(S.current_window->buff->flags, BUFFER_COLORED));
 
-        if(ch == 0) {
+        if(cur->pos == -1 && ch == 0) {
             if(cur->gl->prev) {
+                ch = L' ';
+
                 cur->gl = cur->gl->prev;
                 cur->pos = cur->gl->len;
                 cur->index--;
             } else {
+                cur->pos = 0;
                 break;
             }
         }
@@ -470,6 +476,8 @@ void current_window_toggle_lisp() {
 
     char to_do = !flag_is_on(S.current_window->flags, WINDOW_LISP);
 
+    // TODO
+
     if(to_do) {
         // if buffer is not lisp buffer, convert
         // set buffer overrides
@@ -480,7 +488,22 @@ void current_window_toggle_lisp() {
         // but the buffer is still going to be lisp
     }
 
-    S.current_window->flags |= WINDOW_LISP;
+    S.current_window->flags ^= WINDOW_LISP;
+}
+
+void current_window_toggle_wrap() {
+    if(!S.current_window) return;
+    if(!S.current_window->buff) return;
+
+    char to_do = !flag_is_on(S.current_window->flags, WINDOW_WRAP);
+
+    if(to_do) {
+
+    } else {
+
+    }
+
+    S.current_window->flags ^= WINDOW_WRAP;
 }
 
 // split current window in half horizontally

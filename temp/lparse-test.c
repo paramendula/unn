@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "../src/lisp-mode.h"
+#include "../src/lparse.h"
 
 void print_space(int space) {
     for(int i = 0; i < space; i++) {

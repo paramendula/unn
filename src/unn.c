@@ -32,7 +32,8 @@
         err.h - simple error handling structure and functions, mainly forgotten about
         flags.h - primitive bitwise manipulation definitions for flagging
         helpers.h - misc. functions mainly used by commands.h
-        lisp-mode.h - an implementation of a special mode that hels coding in Lisp greatly
+        lparse.h - crude Scheme Lisp one-step parser
+        lmode.h - an implementation of a special mode that helps coding in Lisp greatly
         lisp.h - header for functions that some Lisp implementation should export for UNN to use
         list.h - simple doubly-linked list implementation
         logic.h - main logic implemented in functions, draw/input loop functions

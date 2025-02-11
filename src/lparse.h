@@ -16,8 +16,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef __UNN_LISP_MODE_H_
-#define __UNN_LISP_MODE_H_
+#ifndef __UNN_LPARSE_H_
+#define __UNN_LPARSE_H_
 
 #include <stdio.h>
 #include <wchar.h>
@@ -27,43 +27,6 @@
 
 #include "list.h"
 #include "err.h"
-
-// analyze a file - a sequence of symbolic expressions
-// database of all imported procedures, special forms and macros should exist at any moment
-// features:
-// auto-complete a symbol by showing all possible choices
-//      or automatically choosing the single one if it is sole
-// jump between matching parentheses
-// moving between Sexps:
-//  jump to the next Sexp, to the prev Sexp
-//  escape current Sexp, get one level above
-//  get inside current Sexp (if it's a list), point to the first Sexp inside the list
-// editing Sexps
-//  cut current Sexp
-//  move current Sexp (back, forward)
-// get hint about the symbol, it's definition and documentation if is in database
-// quick binds for construction of predefined Sexps such as let, lambda, cond, etc.
-// running the file, or selected Sexp
-// REPL inside unn?
-// allow running external REPLs inside unn, requires vterm or something similar that handles
-//      virtual term sequences modification for sub-drawing (does this even work like that?)
-
-// all identation is fully automatic
-
-// you could also call it Lisp Buffer
-
-// at first, let's make it so we have to re-parse the whole file after a single change
-
-/*typedef struct buffer_lisp {
-    union {
-        buffer buff; 
-        cbuffer cbuff;
-    }; // for convenience 
-    // save current Sexp, etc.
-} buffer_lisp;*/
-
-// override all moving/editing keybinds
-// make buff's on_destroy cb call b_lisps's on_destroy
 
 // first, primitive lisp parser needed
 // also let's make so that lparse* won't be needlessly free'd and malloc'd
@@ -82,7 +45,7 @@
 // #define LP_DEBUG 1
 
 typedef enum lpdatype {
-    tWrong,
+    tWrong = 0, // if not done or error
     tList,
     tVector,
     tByteVector,
@@ -291,6 +254,9 @@ inline static int is_ident_symbol(wchar_t ch) {
             !iswspace(ch));
 }
 
+// "The moment they tell you 'a function should fit in a half of the screen'
+//  is the moment you understand who is a pure lamer here."
+//
 // state, rfunc and e can't be NULL
 // bad lisp != error; state should handle bad lisp info propagation
 // rfunc should infinitely send ERROR_READ_EOF when it's exhausted
@@ -1093,6 +1059,9 @@ int lp_parse(lparse *state, read_func rfunc, void *data, err *e) {
                 lp_deinit(state);
                 return err_set(e, -2, L"new_datum: not enough memory");
             }
+
+            new_datum->line = line;
+            new_datum->symbol = symbol;
         }
 
         // ACTIVATE A FLAG DEPENDING ON THE FIRST CHARACTER OF A TOKEN
@@ -1164,6 +1133,9 @@ typedef struct frdata {
     char buff[16];
 } frdata;
 
+// "If it works, do NOT touch it"
+//
+// I know this could be a lot shorter
 wchar_t read_func_file(frdata *f, err *e) {
     if(!f) {
         err_set(e, -1, L"null file data pointer provided");

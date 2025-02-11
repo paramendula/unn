@@ -581,7 +581,7 @@ int copy_file(FILE *from, FILE *to) {
 }
 
 wchar_t cur_char(offset *cur, char type) {
-    if((cur->pos < 0) || (cur->pos > cur->gl->len)) return 0;
+    if((cur->pos < 0) || (cur->pos >= cur->gl->len)) return 0;
 
     if(type == BUFFER_COLORED) {
         return cur->dl->dstr[cur->pos].wch;

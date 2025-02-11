@@ -60,9 +60,10 @@ ubind BUFFER_BINDINGS[] = {
 
 ubind TOGGLE_BINDINGS[] = {
     { 0, "c", { clear_input_buffer_and_move } }, // exit this continuation
-    { 0, "l", { current_window_toggle_lines } }, // toggle line numbering
+    { 0, "n", { current_window_toggle_lines } }, // toggle line numbering
     { 0, "m", { current_window_toggle_marks } }, // toggle long line marks
-    // wrap lines
+    { 0, "w", { current_window_toggle_wrap } }, // toggle line wrapping
+    { 0, "l", { current_window_toggle_lisp } }, // toggle lisp mode
     { 0, NULL, { NULL } },
 };
 
