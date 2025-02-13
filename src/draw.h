@@ -41,201 +41,6 @@ int digits_count(int number) {
     return d;
 }
 
-// ugly code >:(
-inline static void draw_window_line(window *w, offset view, 
-                                    offset cur, int y1, int x1, int width, int dc, char is_mark, colors cl) {
-    int len = (view.l) ? (view.l->len - view.pos) : 0;
-
-    char is_curline = view.l == cur.l;
-
-    rgb_pair colcur = cl.cur;
-    rgb_pair colcline = cl.cur_line;
-
-    if(is_curline) {
-        ncplane_set_bg_rgb8(S.p, colcline.bg.r, colcline.bg.g, colcline.bg.b);
-        ncplane_set_fg_rgb8(S.p, colcline.fg.r, colcline.fg.g, colcline.fg.b);
-    }
-
-    for(int i = x1; i < x1 + width + is_mark; i++) {
-        ncplane_putchar_yx(S.p, y1, i, ' ');
-    }
-
-    ncplane_cursor_move_yx(S.p, y1, x1 - ((dc) ? (dc + 1) : 0));
-
-    if(dc) { // if we number lines
-        char buff[16] = { 0 };
-
-        int c;
-
-        if(view.l) {
-           c = snprintf(buff, sizeof(buff) - 1, "%d", view.index + y1 + 1);
-        } else {
-            c = dc;
-            for(int i = 0; i < dc; i++) {
-                buff[i] = '-';
-            }
-        }
-        int indent = dc - c;
-
-        for(int i = 0; i < indent; i++) {
-            ncplane_putchar(S.p, ' ');
-        }
-        ncplane_putstr(S.p, buff);
-        ncplane_putchar(S.p, ' ');
-    }
-
-    // empty line
-    if(len <= 0) {
-        if(cur.l == view.l) { // if we have cursor at an empty line
-            nccell c = { 0 };
-            c.gcluster = L' ';
-
-            nccell_set_bg_rgb8(&c, colcur.bg.r, colcur.bg.g, colcur.bg.b);
-            nccell_set_fg_rgb8(&c, colcur.fg.r, colcur.fg.g, colcur.fg.b);
-
-            ncplane_putc_yx(S.p, y1, x1, &c);
-        }
-
-        if(is_curline) { // go back
-            ncplane_set_bg_rgb8(S.p, cl.gen.bg.r, cl.gen.bg.g, cl.gen.bg.b);
-            ncplane_set_fg_rgb8(S.p, cl.gen.fg.r, cl.gen.fg.g, cl.gen.fg.b);
-        }
-
-        return;
-    }
-    
-    // if window is not wide enough for the line
-    char not_fully = len > width;
-
-    wchar_t *wcstr = view.l->str + view.pos;
-
-    wchar_t temp;
-    if(not_fully) {
-        temp = wcstr[width];
-        wcstr[width] = 0;
-    }
-
-    ncplane_putwstr(S.p, wcstr);
-
-    if(is_curline) { // go back
-        ncplane_set_bg_rgb8(S.p, cl.gen.bg.r, cl.gen.bg.g, cl.gen.bg.b);
-        ncplane_set_fg_rgb8(S.p, cl.gen.fg.r, cl.gen.fg.g, cl.gen.fg.b);
-    }
-
-    // draw cursor
-    if(is_curline) {
-        if(cur.pos >= view.pos) {
-            nccell c = { 0 };
-
-            // L' ' if cursor is at the end, after the last char
-            wchar_t ch = (cur.pos < view.l->len) ? cur.l->str[cur.pos] : L' ';
-
-            nccell_load_ucs32(S.p, &c, ch);
-
-            nccell_set_bg_rgb8(&c, colcur.bg.r, colcur.bg.g, colcur.bg.b);
-            nccell_set_fg_rgb8(&c, colcur.fg.r, colcur.fg.g, colcur.fg.b);
-
-            if((cur.pos <= (view.pos + width - 1))) {
-                ncplane_putc_yx(S.p, y1, x1 + cur.pos - view.pos, &c);
-            } 
-        }
-    }
-
-    if(not_fully) {
-        wcstr[width] = temp;
-
-        if(is_mark) {
-            nccell c = { 0 };
-
-            nccell_set_bg_rgb8(&c, colcur.bg.r, colcur.bg.g, colcur.bg.b);
-            nccell_set_fg_rgb8(&c, colcur.fg.r, colcur.fg.g, colcur.fg.b);
-
-            c.gcluster = L'>';
-
-            ncplane_putc_yx(S.p, y1, x1 + width, &c);
-        }
-    }
-}
-
-void draw_window(window *w) {
-    if(!w) return;
-
-    rect pos = w->pos;
-    offset cur = w->cur;
-    offset view = w->view;
-
-    char is_prompt = flag_is_on(w->buff->flags, BUFFER_PROMPT);
-    char is_mark = !!flag_is_on(w->flags, WINDOW_LONG_MARKS);
-    char is_focused = S.current_window == w;
-
-    colors cl = (is_focused) ? w->cl.focused : w->cl.unfocused;
-
-    int dc = 0;
-
-    int height = pos.y2 - pos.y1 + 1;
-    int width = pos.x2 - pos.x1 + 1;
-
-    if(flag_is_on(w->flags, WINDOW_LONG_MARKS)) {
-        int n_width = width - 1; // for side markers
-        if(n_width < 1) flag_off(w->flags, WINDOW_LONG_MARKS);
-        else width = n_width;
-    }
-
-    if(flag_is_on(w->flags, WINDOW_LINES) && !is_prompt) {
-        dc = digits_count(view.index + height); // how many cells the most big num will take
-        int n_width = width - dc - 1;
-        if(n_width < 1) {
-            dc = 0;
-            w->dc = 0;
-            flag_off(w->flags, WINDOW_LINES);
-        } else {
-            width = n_width;
-            pos.x1 += dc + 1;
-            w->dc = dc;
-        }
-    } else {
-        w->dc = 0;
-    }
-
-    logg("Drawing window: %d %d %d %d - %d %d\n",
-    pos.y1, pos.x1, pos.y2, pos.x2, height, width);
-
-    ncplane_set_bg_rgb8(S.p, cl.gen.bg.r, cl.gen.bg.g, cl.gen.bg.b);
-    ncplane_set_fg_rgb8(S.p, cl.gen.fg.r, cl.gen.fg.g, cl.gen.fg.b);
-
-    if(!w->buff) return;
-
-    // if prompt window, write the prompt string at the beginning and offset the cursor pos
-    if(is_prompt) {
-        if(w->buff->path) {
-            int path_len = wcslen(w->buff->path);
-            int nw = width - path_len;
-
-            if(nw > 0) {
-                ncplane_putwstr_yx(S.p, pos.y1, pos.x1, w->buff->path);
-                pos.x1 += path_len;
-                width = nw;
-            }
-        }
-    }
-
-    int y = pos.y1;
-    for(; y <= pos.y2; y++) {
-        draw_window_line(w, view, cur, y, pos.x1, width, dc, is_mark, cl);
-        if(!view.l->next) break;
-        view.l = view.l->next;
-    }
-    y++;
-
-    for(; y <= pos.y2; y++) { // lets finish the empty space
-        draw_window_line(w, 
-        (offset) { .index = 0, .pos = 0, .l = NULL }, 
-        cur, y, pos.x1, width, dc, is_mark, cl);
-    }
-    
-    return;
-}
-
 int draw_grid(struct ncplane *p, grid *g, char blocking) {
     if(!g) return -1;
 
@@ -354,14 +159,11 @@ inline static void dstr_put_yx(dchar *dstr, int y, int x, int amount, rgb_pair c
     }
 }
 
-void draw_window_colored(window *w) {
+void draw_window(window *w) {
     if(!w) return;
     if(!w->buff) return;
 
-    cbuffer *cbuff = (cbuffer *)w->buff;
-    buffer *b = &cbuff->buff;
-
-    if(flag_is_off(b->flags, BUFFER_COLORED)) return; // we don't like drawing you!!
+    // buffer *b = w->buff;
 
     char is_focused = (S.current_window == w);
     char is_numbered = flag_is_on(S.current_window->flags, WINDOW_LINES);
@@ -394,7 +196,7 @@ void draw_window_colored(window *w) {
     int current_line_y = w->pos.y1;
     int last_line_y = w->pos.y2;
 
-    dline *current_line = w->view.dl;
+    line *current_line = w->view.l;
 
     char buff[32] = { 0 };
 
@@ -413,6 +215,7 @@ void draw_window_colored(window *w) {
 
         // print decorated text
         // with account for right border
+
         int line_length = current_line->len - S.current_window->view.pos;
         int withhold = 0;
         int to_be_printed = 0;
@@ -420,18 +223,17 @@ void draw_window_colored(window *w) {
 
         if(line_length > 0) {
             if(line_right_border > right_border) {
-                withhold = line_right_border - right_border;
-                line_right_border -= withhold;
+                withhold = line_right_border - right_border - 1;
             }
 
-            to_be_printed = line_length - withhold + 1;
+            to_be_printed = line_length - withhold;
 
             dstr_put_yx(current_line->dstr + w->view.pos, current_line_y, left_border, to_be_printed,
-                (current_line == w->cur.dl) ? cl.cur_line : cl.gen);
+                (current_line == w->cur.l) ? cl.cur_line : cl.gen);
         }
 
-        if(current_line == w->cur.dl) {
-            if(line_right_border < right_border) {
+        if(current_line == w->cur.l) {
+            if(line_right_border <= right_border) {
                 ncplane_set_bg_rgb8(S.p, cl.cur_line.bg.r, cl.cur_line.bg.g, cl.cur_line.bg.b);
                 ncplane_set_fg_rgb8(S.p, cl.cur_line.fg.r, cl.cur_line.fg.g, cl.cur_line.fg.b);
 
@@ -457,7 +259,7 @@ void draw_window_colored(window *w) {
 
         if(is_marked) {
             if(withhold) {
-                dchar_put_yx((dchar) { .wch = L'>', .flags = 0 },
+                dchar_put_yx(DCH(L'>'),
                     current_line_y, w->pos.x2, cl.cur);
             }
         }

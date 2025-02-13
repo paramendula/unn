@@ -69,7 +69,7 @@ typedef struct buffer_lisp {
 int bl_render(buffer_lisp *bl) {
     if(!bl) return -1;
 
-
+    
 
     return 0;
 }

@@ -49,12 +49,7 @@ typedef struct offset {
     union {
         int pos, x;
     };
-    union {
-        void *ptr;
-        general_line *gl;
-        line *l;
-        dline *dl;
-    };
+    line *l;
 } offset;
 
 typedef struct window {

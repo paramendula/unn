@@ -36,6 +36,7 @@
         lmode.h - an implementation of a special mode that helps coding in Lisp greatly
         lisp.h - header for functions that some Lisp implementation should export for UNN to use
         list.h - simple doubly-linked list implementation
+        line.h - mutable attributed wide char string implementation
         logic.h - main logic implemented in functions, draw/input loop functions
         misc.h - miscallenous types and definitios
         panic.h - exposes a single function that simply panics (aborts)

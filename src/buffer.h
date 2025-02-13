@@ -26,31 +26,10 @@
 #include "bind.h"
 #include "list.h"
 #include "misc.h"
+#include "colors.h"
+#include "line.h"
 
 #define BUFFER_PROMPT 1
-#define BUFFER_COLORED 2
-
-typedef struct general_line {
-    union {
-        node n;
-        struct {
-            struct general_line *prev, *next;
-        };
-    };
-    int len, cap;
-    void *data;
-} general_line;
-
-typedef struct line {
-    union {
-        general_line gl;
-        struct {
-            struct line *prev, *next;
-            int len, cap;
-            wchar_t *str;
-        };
-    };
-} line;
 
 // buffer and window are interconnected, yet they can exist separately
 typedef struct buffer {
@@ -98,35 +77,6 @@ typedef struct buffer_list {
     int last_index;
 } buffer_list;
 
-
-line *line_empty(int cap) {
-    line *l = (line *)calloc(1, sizeof(*l));
-
-    if(!l) return NULL;
-
-    wchar_t *str = (wchar_t *)malloc((sizeof(*str) + 1) * cap);
-
-    if(!str) {
-        free(l);
-        return NULL;
-    }
-
-    str[0] = 0;
-    l->cap = cap;
-    l->str = str;
-
-    return l;
-}
-
-void line_free(line *l) {
-    if(!l) return;
-
-    if(l->str)
-        free(l->str);
-
-    free(l);
-}
-
 buffer *buffer_from_lines(const wchar_t *name, line *first, line *last, int line_count) {
     buffer *b = (buffer *)calloc(1, sizeof(*b));
 
@@ -144,6 +94,7 @@ buffer *buffer_from_lines(const wchar_t *name, line *first, line *last, int line
     }
 
     wcsncpy(name_copy, name, name_len);
+    name_copy[name_len] = 0;
 
     b->first = first;
     b->last = last;

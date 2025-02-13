@@ -24,7 +24,6 @@
 #include <wchar.h>
 
 #include "list.h"
-#include "buffer.h"
 
 // header for text styling, TODO
 
@@ -38,14 +37,14 @@ typedef struct rgb {
     unsigned char r, g, b;
 } rgb;
 
-#define RGB(rr, gg, bb) ((rgb) { .r = rr, .g = gg, .b = bb })
+#define RGB(_rr, _gg, _bb) ((rgb) { .r = _rr, .g = _gg, .b = _bb })
 #define RGB_INVERSE(_rgb) ((rgb) { .r = ~((_rgb).r), ~((_rgb).g), ~((_rgb).b)})
 
 typedef struct rgb_pair {
     rgb fg, bg;
 } rgb_pair;
 
-#define RGB_PAIR(r, g, b, r1, g1, b1) ((rgb_pair) { .fg = RGB(r, g, b), .bg = RGB(r1, g1, b1) })
+#define RGB_PAIR(_r, _g, _b, _r1, _g1, _b1) ((rgb_pair) { .fg = RGB(_r, _g, _b), .bg = RGB(_r1, _g1, _b1) })
 #define RGB_PAIR_INVERSE(_rgbp) ((rgb_pair) { .fg = RGB_INVERSE((_rgbp).fg), .bg = RGB_INVERSE((_rgbp).bg)})
 
 typedef struct colors {
@@ -58,42 +57,5 @@ typedef struct win_colors {
     colors focused;
     colors unfocused;
 } win_colors;
-
-#define DCHAR_COLORED 1
-#define DCHAR_BOLD 2
-#define DCHAR_ITALIC 4
-#define DCHAR_DIM 8
-
-// I'm not sure if this is efficient
-typedef struct dchar {
-    wchar_t wch;
-    int flags;
-    rgb_pair color;
-    // TODO: underline, bold, italic, etc.
-} dchar;
-
-typedef struct dline {
-    union {
-        general_line gl;
-        struct {
-            struct dline *prev, *next;
-
-            int len, cap;
-            dchar *dstr;
-        };
-    };
-} dline;
-
-// buffer with colored, decorated text
-typedef struct cbuffer {
-    buffer buff;
-
-    int dlines_count;
-    dline *first, *last;
-} cbuffer; 
-
-#define CBUFFER_LIST(cbuff) ((list *)&((cbuff)->dlines_count))
-
-// draw functions are in draw.h
 
 #endif
