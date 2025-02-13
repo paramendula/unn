@@ -233,6 +233,11 @@ void cursor_viewmode_toggle() {
     state_flag_toggle(FLAG_VIEW);
 }
 
+void cursor_rotate_view() {
+    if(!S.current_window) return;
+    if(!S.current_window->buff) return;
+}
+
 void enter_append() {
     cursor_right();
     mode_edit();

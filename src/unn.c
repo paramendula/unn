@@ -21,6 +21,8 @@
 // a newly-born not-yet-finished "text editor"
 // with high amibitions and far-fetched goals
 
+// sometimes I wonder why I'd chosen C over Zig for this project
+
 /*
     FILES:
         bind.h - bindings primitive hash map implementation
@@ -138,7 +140,12 @@
 
 pthread_mutex_t log_mutex;
 
-#define DEBUG 1
+// #define DEBUG 1
+
+#define DEBUG_FILE 1
+#define DEBUG_BUFFER 1
+
+#define DEBUG_BUFFER_LIMIT 1000
 
 #ifdef DEBUG
 void logg(char *fmt, ...) {
@@ -147,13 +154,20 @@ void logg(char *fmt, ...) {
 
     pthread_mutex_lock(&log_mutex);
 
+    #ifdef DEBUG_FILE
     errfp = fopen("logs.txt", "a");
 
     vfprintf(errfp, fmt, ap);
 
-    va_end(ap);
-
     fclose(errfp);
+    #endif
+    
+
+    #ifdef DEBUG_BUFFER
+    // TODO
+    #endif
+
+    va_end(ap);
     
     pthread_mutex_unlock(&log_mutex);
 }
@@ -233,7 +247,7 @@ void unn_init() {
     }
 
     // TODO: set prompt binds
-    // currently unneeded, one binds(enter, newline) is hardcoded
+    // currently unneeded, one bind(enter, newline) is hardcoded
 
     logg("Binds set\n");
 

@@ -26,15 +26,16 @@
 // continuations are virtual #(:-3>-<--< (somewhat)
 
 typedef void(*tusk)(); // thunk. but my sleepy head at that moment misspelled it
+typedef void(*num_tusk)(int); // for parametered commands such as jump line
 
 #define TUSK_CONT ((tusk) 1)
 #define TUSK_NOP ((tusk) 2)
 
 typedef struct ubind {
-    char is_cont;
+    char is_cont, is_num;
     const char *seq;
     union {
-        tusk cb;
+        tusk cb, num_cb;
         struct ubind *cont;
     };
 } ubind;
