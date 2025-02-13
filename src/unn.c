@@ -135,6 +135,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <locale.h>
 
 #include <pthread.h>
 
@@ -270,6 +271,8 @@ void unn_run() {
 }
 
 int main(int argc, char **argv) {
+    setlocale(LC_ALL, "");
+    
     unn_init();
     unn_run();
     logg("Returning from main\n");

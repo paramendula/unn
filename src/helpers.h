@@ -234,22 +234,13 @@ void save_buffer(buffer *b) {
         int len = l->len;
 
         if(dstr) {
-            char buf[32] = { 0 };
-
             for(int i = 0; i < len; i++) {
-                int c = wctomb(buf, dstr[len].wch);
-
-                if(c < 1) {
-                    fputc('?', fp);
-                } else {
-                    buf[c] = 0;
-                    fputs(buf, fp);
-                }
+                fprintf(fp, "%lc", dstr[i].wch);
             }
-        }
 
-        if(l->next != NULL) { // add \n to each line, except for the last one
-            fprintf(fp, "\n");
+            if(l->next != NULL) { // add \n to each line, except for the last one
+                fprintf(fp, "\n");
+            }
         }
     }
 
