@@ -28,8 +28,21 @@
 #include "misc.h"
 #include "colors.h"
 #include "line.h"
+#include "wstr.h"
 
 #define BUFFER_PROMPT 1
+
+typedef struct nwstr {
+    struct nwstr *prev, *next;
+
+    union {
+        wstr w;
+        struct {
+            int len, cap;
+            wchar_t *wcs;
+        };
+    };
+} nwstr;
 
 // buffer and window are interconnected, yet they can exist separately
 typedef struct buffer {
@@ -39,6 +52,9 @@ typedef struct buffer {
 
     int lines_count;
     line *first, *last;
+
+    int raw_lines_count;
+    nwstr *raw_first, *raw_last;
 
     wchar_t *path, *name;
     int index;
@@ -57,6 +73,7 @@ typedef struct buffer {
 } buffer;
 
 #define BUFFER_LIST(buff) ((list *)(&((buff)->lines_count)))
+#define BUFFER_LIST_RAW(buff) ((list *)(&((buff)->raw_lines_count)))
 
 typedef struct int_node {
     struct int_node *prev, *next;

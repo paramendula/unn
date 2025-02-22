@@ -44,6 +44,7 @@
         panic.h - exposes a single function that simply panics (aborts)
         state.h - general UNN state expressed by a single structure and it's helper functions
         window.h - general definitions for window, grid, etc. and it's helper functions
+        wstr.h - dynamic wide char c-string wrapper and helper functions
         unn.c - state + logic glue and bootstrapper
 
     !!  Multithreading problems do currently exist,
@@ -54,7 +55,6 @@
         * add togglable movement options, such as view adjustment flags, etc.
 
         * focused/unfocused for colored buffers
-        * dline, line <-> wstr interop
         
         * make colors focused and unfocsed separate instances of one struct for usability
 
