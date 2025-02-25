@@ -52,6 +52,10 @@
     !!  some time.
 
     TODO (appropximated):
+        * For an important reason, I've decided to rewrite the whole codebase in Scheme
+            before continuing with the development of UNN.
+        ---
+        
         * add togglable movement options, such as view adjustment flags, etc.
 
         * focused/unfocused for colored buffers
